@@ -1,4 +1,6 @@
-import { getCoreRowModel, useReactTable, type ColumnDef, type RowSelectionState } from "@tanstack/react-table";
+import {
+  columnSizingFeature, columnVisibilityFeature, rowSelectionFeature, tableFeatures, useTable, type ColumnDef, type RowSelectionState,
+} from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { ArrowDown, ArrowUp, Lock, Pencil } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
@@ -24,6 +26,8 @@ import { FieldControl, FieldValue, isNumeric, RecordLink } from "@/meta/registry
 export const ROW_HEIGHT = 36;
 const SELECT_COL = "__select";
 const NAME_COL = "__name";
+// Only what the grid uses: fixed column sizes, the visible columns, and row selection. Sorting is done by the server.
+const features = tableFeatures({ columnSizingFeature, columnVisibilityFeature, rowSelectionFeature });
 
 export interface DataTableProps {
   meta: ObjectMeta;
@@ -72,8 +76,8 @@ export function DataTable(p: DataTableProps) {
   const [focus, setFocus] = useState<{ row: number; col: number }>({ row: 0, col: 1 });
   const [editing, setEditing] = useState<{ row: number; col: number } | null>(null);
 
-  const colDefs = useMemo<ColumnDef<RecordData>[]>(() => {
-    const defs: ColumnDef<RecordData>[] = [
+  const colDefs = useMemo<ColumnDef<typeof features, RecordData>[]>(() => {
+    const defs: ColumnDef<typeof features, RecordData>[] = [
       { id: SELECT_COL, size: 40, header: () => null, cell: () => null },
       { id: NAME_COL, size: 240, header: () => meta.label, cell: () => null },
     ];
@@ -84,15 +88,14 @@ export function DataTable(p: DataTableProps) {
     return defs;
   }, [meta, columns]);
 
-  const table = useReactTable({
+  const table = useTable({
+    features,
     data: rows,
     columns: colDefs,
     getRowId: (r) => r.id,
-    getCoreRowModel: getCoreRowModel(),
     enableRowSelection: true,
     state: { rowSelection: p.selection },
     onRowSelectionChange: (u) => p.onSelectionChange(typeof u === "function" ? u(p.selection) : u),
-    manualSorting: true,
   });
   const tableRows = table.getRowModel().rows;
   const leafCols = table.getVisibleLeafColumns();
