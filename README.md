@@ -191,7 +191,7 @@ docs/             data model, decisions, security, compliance, MCP reference, gu
 
 ## Development
 
-Needs Node 24 (`.nvmrc`) and pnpm (`corepack enable` picks the version in `package.json`).
+Needs Node 24 or newer (`.nvmrc` selects 26, which CI and the image use) and pnpm (`corepack enable` picks the version in `package.json`; Node 25 and later no longer bundle corepack, so install it first with `npm install --global corepack`).
 
 ```sh
 pnpm install
