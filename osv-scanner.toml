@@ -1,0 +1,7 @@
+# Known advisories the dependency scan may skip, each with a reason and an end date.
+# Remove an entry as soon as a fixed version exists.
+
+[[IgnoredVulns]]
+id = "GHSA-fc5q-39xc-vjpf"
+ignoreUntil = 2027-01-15T00:00:00Z
+reason = "picomatch 4.0.7: denial of service from crafted glob patterns. No fixed version exists yet. It is pulled in only by build and test tools (Vite, Vitest); no production install or the server image contains it, and no glob pattern comes from outside the repository."
