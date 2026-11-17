@@ -1,0 +1,200 @@
+# CI: tests, lint, type-check, and secret, dependency, SAST and container scanning.
+# Every job uploads its report as an artifact, kept as compliance evidence.
+# Actions are pinned to commit SHAs; scanner images are pinned to versions.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Test, lint, type-check
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17.6@sha256:00bc86618629af00d2937fdc5a5d63db3ff8450acf52f0636ec813c7f4902929
+        env:
+          POSTGRES_PASSWORD: ci-only-superuser
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 2s --health-timeout 3s --health-retries 30
+    env:
+      TEST_DATABASE_URL: postgres://hlcrm_app:ci-only-app@localhost:5432/hlcrm_test
+      TEST_MIGRATOR_URL: postgres://hlcrm_migrator:ci-only-migrator@localhost:5432/hlcrm_test
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: Create database roles (same script as Docker Compose)
+        env:
+          PGPASSWORD: ci-only-superuser
+          POSTGRES_USER: postgres
+          HLCRM_MIGRATOR_PASSWORD: ci-only-migrator
+          HLCRM_APP_PASSWORD: ci-only-app
+          HLCRM_CREATE_TEST_DB: "true"
+        run: |
+          sed 's/psql /psql -h localhost /' deploy/postgres/init-roles.sh > /tmp/init-roles.sh
+          sh /tmp/init-roles.sh
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm build
+      - run: pnpm typecheck
+      - name: Licences of what the web UI ships
+        run: pnpm check:licenses
+      - name: Test (server)
+        run: pnpm --filter @hl-crm-db/server exec vitest run --reporter=default --reporter=junit --outputFile.junit=../../reports/junit.xml
+      - name: Test (CLI)
+        run: pnpm --filter hl-crm-db test
+      - name: Test (web UI)
+        run: pnpm --filter @hl-crm-db/web test
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: evidence-tests
+          path: reports/
+          retention-days: 400
+
+  e2e:
+    name: Browser tests (web UI against the real API)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:17.6@sha256:00bc86618629af00d2937fdc5a5d63db3ff8450acf52f0636ec813c7f4902929
+        env:
+          POSTGRES_PASSWORD: ci-only-superuser
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 2s --health-timeout 3s --health-retries 30
+    env:
+      E2E_DATABASE_URL: postgres://hlcrm_app:ci-only-app@localhost:5432/hlcrm_dev_web
+      E2E_MIGRATOR_URL: postgres://hlcrm_migrator:ci-only-migrator@localhost:5432/hlcrm_dev_web
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: Create database roles and the browser-test database
+        env:
+          PGPASSWORD: ci-only-superuser
+          POSTGRES_USER: postgres
+          HLCRM_MIGRATOR_PASSWORD: ci-only-migrator
+          HLCRM_APP_PASSWORD: ci-only-app
+        run: |
+          sed 's/psql /psql -h localhost /' deploy/postgres/init-roles.sh > /tmp/init-roles.sh
+          sh /tmp/init-roles.sh
+          psql -h localhost -U postgres -v ON_ERROR_STOP=1 -d postgres -c "CREATE DATABASE hlcrm_dev_web OWNER hlcrm_migrator"
+          psql -h localhost -U postgres -v ON_ERROR_STOP=1 -d hlcrm_dev_web -c "REVOKE ALL ON DATABASE hlcrm_dev_web FROM PUBLIC; GRANT CONNECT ON DATABASE hlcrm_dev_web TO hlcrm_app"
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - name: Install browsers
+        run: pnpm --filter @hl-crm-db/web exec playwright install --with-deps chromium firefox webkit
+      - name: Browser tests
+        run: |
+          HLCRM_MASTER_KEY="$(openssl rand -base64 32)"
+          export HLCRM_MASTER_KEY
+          pnpm --filter @hl-crm-db/web test:e2e
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: failure()
+        with:
+          name: browser-test-results
+          path: packages/web/test-results/
+          retention-days: 14
+
+  secrets:
+    name: Secret scan (gitleaks)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: gitleaks (full history)
+        run: |
+          mkdir -p reports
+          docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:v8.30.1 git /repo \
+            --redact --report-format json --report-path /repo/reports/gitleaks.json --exit-code 1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: evidence-secrets
+          path: reports/
+          retention-days: 400
+
+  dependencies:
+    name: Dependency scan (osv-scanner)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: osv-scanner
+        run: |
+          mkdir -p reports
+          docker run --rm -v "$PWD:/src" ghcr.io/google/osv-scanner:v2.7.0 scan source \
+            --lockfile /src/pnpm-lock.yaml --format json --output /src/reports/osv.json \
+          || (docker run --rm -v "$PWD:/src" ghcr.io/google/osv-scanner:v2.7.0 scan source --lockfile /src/pnpm-lock.yaml; exit 1)
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: evidence-dependencies
+          path: reports/
+          retention-days: 400
+
+  sast:
+    name: Static analysis (Semgrep)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: semgrep
+        run: |
+          mkdir -p reports
+          docker run --rm -v "$PWD:/src" -w /src semgrep/semgrep:1.183.0 semgrep scan \
+            --config p/typescript --config p/nodejs --config p/secrets --config .semgrep.yml \
+            --metrics off --error --json --output reports/semgrep.json
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: evidence-sast
+          path: reports/
+          retention-days: 400
+
+  container:
+    name: Container scan and SBOM (Trivy)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: docker build -t hl-crm-db:ci .
+      - name: Trivy image scan (fail on fixable HIGH/CRITICAL)
+        run: |
+          mkdir -p reports
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v "$PWD/reports:/reports" aquasec/trivy:0.76.1 \
+            image --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 \
+            --format json --output /reports/trivy-image.json hl-crm-db:ci
+      - name: SBOM (CycloneDX)
+        if: always()
+        run: |
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v "$PWD/reports:/reports" aquasec/trivy:0.76.1 \
+            image --format cyclonedx --output /reports/sbom.cdx.json hl-crm-db:ci
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: evidence-container
+          path: reports/
+          retention-days: 400

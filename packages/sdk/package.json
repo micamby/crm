@@ -1,0 +1,36 @@
+{
+  "name": "@hl-crm-db/sdk",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "files": [
+    "dist",
+    "LICENSE"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/open-gtm/crm.git",
+    "directory": "packages/sdk"
+  },
+  "homepage": "https://github.com/open-gtm/crm#readme",
+  "bugs": {
+    "url": "https://github.com/open-gtm/crm/issues"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "echo 'sdk: covered by server integration tests'"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.2"
+  }
+}

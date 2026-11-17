@@ -1,0 +1,37 @@
+objects:
+  - name: ticket
+    label: Ticket
+    plural_label: Tickets
+    id_prefix: tkt
+    display_field: subject
+    owned: true
+    fields:
+      - { name: subject, type: text, required: true }
+      - { name: description, type: long_text }
+      - { name: customer, type: relation, relation: { to: contact } }
+      - { name: account, type: relation, relation: { to: account } }
+      - name: priority
+        type: single_select
+        values: [{ key: low, label: Low }, { key: normal, label: Normal }, { key: high, label: High }, { key: urgent, label: Urgent }]
+        default: normal
+      - name: status
+        type: status
+        values: [{ key: new, label: New }, { key: open, label: Open }, { key: pending, label: Pending }, { key: solved, label: Solved }, { key: closed, label: Closed }]
+        initial: new
+        transitions: { new: [open, solved, closed], open: [pending, solved, closed], pending: [open, solved, closed], solved: [open, closed], closed: [] }
+      - name: channel
+        type: single_select
+        values: [{ key: email, label: Email }, { key: chat, label: Chat }, { key: phone, label: Phone }, { key: web, label: Web form }]
+      - { name: satisfaction, type: rating, max: 5 }
+      - { name: first_response_time, label: First response time, type: duration }
+      - { name: sla_breached, label: SLA breached, type: boolean }
+      - { name: context, type: json, description: "Data from the tool that opened the ticket", shape: { type: object, properties: { source: string } } }
+  - name: knowledge_article
+    label: Knowledge article
+    plural_label: Knowledge articles
+    id_prefix: kb
+    display_field: title
+    fields:
+      - { name: title, type: text, required: true }
+      - { name: body, type: long_text }
+      - { name: helpful_share, label: Found helpful, type: percent }

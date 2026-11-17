@@ -1,0 +1,12 @@
+# Build the image from this checkout instead of pulling the published one:
+#   docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
+services:
+  migrate:
+    image: hl-crm-db:local
+    build: .
+  api:
+    image: hl-crm-db:local
+  worker:
+    image: hl-crm-db:local
+  mcp:
+    image: hl-crm-db:local

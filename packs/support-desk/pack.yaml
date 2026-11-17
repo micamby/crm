@@ -1,0 +1,8 @@
+# An example schema pack (MIT, see ../LICENSE): copy it and make it yours. Format: docs/packs.md
+name: support-desk
+version: 1.0.0
+description: Tickets and a small knowledge base for a support team, with a support agent role.
+min_server_version: 0.1.0
+modules: [core]
+parts: [schema, roles, views]
+license: MIT

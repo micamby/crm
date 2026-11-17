@@ -1,0 +1,8 @@
+# An example schema pack (MIT, see ../LICENSE): copy it and make it yours. Format: docs/packs.md
+name: recruiting
+version: 1.0.0
+description: Candidates, job openings and applications for a small hiring team, with recruiter and interviewer roles.
+min_server_version: 0.1.0
+modules: [core]
+parts: [schema, roles, views]
+license: MIT

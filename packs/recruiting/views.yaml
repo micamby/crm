@@ -1,0 +1,17 @@
+# Shared views the pack creates, by object and name.
+views:
+  - name: Top rated candidates
+    object: candidate
+    where: { field: rating, op: gte, value: 4 }
+    sort: [{ field: rating, dir: desc }, { field: full_name }]
+    columns: [full_name, rating, source, notice_period]
+  - name: In interview
+    object: application
+    where: { field: stage, op: eq, value: interview }
+    sort: [{ field: score, dir: desc }]
+    columns: [candidate, job, stage, score]
+  - name: Open roles by city
+    object: job_opening
+    where: { field: status, op: eq, value: open }
+    sort: [{ field: location.country }, { field: location.city }]
+    columns: [title, department, location, remote_share]

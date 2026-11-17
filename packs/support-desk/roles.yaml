@@ -1,0 +1,8 @@
+roles:
+  - key: support_agent
+    name: Support agent
+    description: Works tickets; reads accounts and contacts without changing them.
+    permissions: [records:read, records:write]
+    objects:
+      account: { write: false }
+      contact: { write: false }

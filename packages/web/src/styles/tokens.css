@@ -1,0 +1,124 @@
+/*
+ * Design tokens: the one file to edit to retheme the app.
+ *
+ * Every colour, the type scale, radii and shadows used by the UI come from these variables. Components
+ * never use raw colours: they use Tailwind utilities that point here (bg-surface, text-muted,
+ * border-line, bg-accent, …; the mapping is in app.css). To retheme a fork, change the values below.
+ *
+ * Light values are on :root; dark values on .dark (the app adds that class to <html> when the dark
+ * theme is chosen, or when "system" is chosen and the system prefers dark). Text and accent pairs are
+ * picked for WCAG AA contrast (4.5:1 for text, 3:1 for borders of controls and focus rings) on the
+ * surfaces they sit on; keep that when you change them.
+ *
+ *   --hl-bg              page background behind panels
+ *   --hl-surface         cards, tables, dialogs, menus
+ *   --hl-surface-2       hover rows, inputs' quiet fill, table header
+ *   --hl-surface-3       pressed or selected rows
+ *   --hl-line            hairlines and dividers
+ *   --hl-line-strong     borders of inputs and controls (3:1 against surface)
+ *   --hl-fg              main text
+ *   --hl-muted           secondary text (labels, metadata)
+ *   --hl-subtle          tertiary text (placeholders, hints)
+ *   --hl-accent          primary actions, links, focus, selection
+ *   --hl-accent-hover    primary action hover
+ *   --hl-accent-fg       text on --hl-accent
+ *   --hl-accent-soft     tinted background for selected items and badges
+ *   --hl-accent-soft-fg  text on --hl-accent-soft
+ *   --hl-{danger,warning,success,info}[-soft|-fg] status colours (solid, tinted background, text on tint)
+ *   --hl-focus           focus ring
+ *   --hl-overlay         backdrop behind dialogs
+ */
+
+:root {
+  color-scheme: light;
+
+  --hl-font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+  --hl-font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+
+  /* Type scale (px values; the app is dense: body text is 14px). */
+  --hl-text-xs: 0.75rem;   /* 12 */
+  --hl-text-sm: 0.8125rem; /* 13 */
+  --hl-text-base: 0.875rem; /* 14 */
+  --hl-text-md: 0.9375rem; /* 15 */
+  --hl-text-lg: 1.0625rem; /* 17 */
+  --hl-text-xl: 1.25rem;   /* 20 */
+  --hl-text-2xl: 1.5rem;   /* 24 */
+
+  --hl-radius-sm: 4px;
+  --hl-radius: 6px;
+  --hl-radius-lg: 10px;
+
+  --hl-bg: #f6f6f3;
+  --hl-surface: #ffffff;
+  --hl-surface-2: #f3f3ef;
+  --hl-surface-3: #e9e9e3;
+  --hl-line: #e3e3dc;
+  --hl-line-strong: #8f9298;
+  --hl-fg: #1b1c1e;
+  --hl-muted: #55585e;
+  --hl-subtle: #6b6e74;
+
+  --hl-accent: #0d6b66;
+  --hl-accent-hover: #0a5753;
+  --hl-accent-fg: #ffffff;
+  --hl-accent-soft: #e1f0ee;
+  --hl-accent-soft-fg: #0a4f4b;
+
+  --hl-danger: #b3261e;
+  --hl-danger-soft: #fbe9e7;
+  --hl-danger-fg: #8c1d17;
+  --hl-warning: #b26b00;
+  --hl-warning-soft: #fdf1dc;
+  --hl-warning-fg: #6d4200;
+  --hl-success: #1e7a3c;
+  --hl-success-soft: #e4f3e8;
+  --hl-success-fg: #175e2e;
+  --hl-info: #2659b0;
+  --hl-info-soft: #e7eefa;
+  --hl-info-fg: #1d4485;
+
+  --hl-focus: #0d6b66;
+  --hl-overlay: rgb(20 22 24 / 0.45);
+  --hl-shadow-sm: 0 1px 2px rgb(16 18 20 / 0.06);
+  --hl-shadow: 0 1px 3px rgb(16 18 20 / 0.08), 0 4px 12px rgb(16 18 20 / 0.06);
+  --hl-shadow-lg: 0 8px 28px rgb(16 18 20 / 0.16), 0 2px 6px rgb(16 18 20 / 0.08);
+}
+
+.dark {
+  color-scheme: dark;
+
+  --hl-bg: #111213;
+  --hl-surface: #191a1c;
+  --hl-surface-2: #212225;
+  --hl-surface-3: #2a2c2f;
+  --hl-line: #2d2f33;
+  --hl-line-strong: #6e7279;
+  --hl-fg: #ebebe8;
+  --hl-muted: #a9acb2;
+  --hl-subtle: #8f9399;
+
+  --hl-accent: #4cc2b8;
+  --hl-accent-hover: #6dd1c8;
+  --hl-accent-fg: #06302d;
+  --hl-accent-soft: #15322f;
+  --hl-accent-soft-fg: #8fe0d8;
+
+  --hl-danger: #f08a80;
+  --hl-danger-soft: #3a1815;
+  --hl-danger-fg: #f6b1aa;
+  --hl-warning: #e8b54f;
+  --hl-warning-soft: #33280f;
+  --hl-warning-fg: #f0cd86;
+  --hl-success: #62c987;
+  --hl-success-soft: #13301d;
+  --hl-success-fg: #96dcae;
+  --hl-info: #82adf2;
+  --hl-info-soft: #172539;
+  --hl-info-fg: #b0cbf6;
+
+  --hl-focus: #4cc2b8;
+  --hl-overlay: rgb(0 0 0 / 0.6);
+  --hl-shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4);
+  --hl-shadow: 0 1px 3px rgb(0 0 0 / 0.5), 0 4px 12px rgb(0 0 0 / 0.35);
+  --hl-shadow-lg: 0 8px 28px rgb(0 0 0 / 0.55), 0 2px 6px rgb(0 0 0 / 0.4);
+}

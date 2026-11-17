@@ -1,0 +1,45 @@
+{
+  "name": "@hl-crm-db/server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "files": [
+    "dist"
+  ],
+  "license": "AGPL-3.0-only",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/open-gtm/crm.git",
+    "directory": "packages/server"
+  },
+  "homepage": "https://github.com/open-gtm/crm#readme",
+  "bugs": {
+    "url": "https://github.com/open-gtm/crm/issues"
+  },
+  "bin": {
+    "hl-crm-db-server": "dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json && node scripts/copy-migrations.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "dev": "tsx src/cli.ts"
+  },
+  "dependencies": {
+    "@hl-crm-db/sdk": "workspace:*",
+    "@hono/node-server": "2.1.6",
+    "@modelcontextprotocol/sdk": "1.32.2",
+    "hono": "4.13.16",
+    "jose": "6.2.14",
+    "nodemailer": "10.1.7",
+    "pino": "9.14.0",
+    "postgres": "3.4.9",
+    "re2js": "2.9.1",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.2",
+    "tsx": "4.23.15",
+    "vitest": "4.1.12"
+  }
+}

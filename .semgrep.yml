@@ -1,0 +1,47 @@
+# Project-specific Semgrep rules.
+rules:
+  - id: hlcrm-no-unsafe-sql-with-input
+    message: >
+      SQL passed to unsafe() must only interpolate quoteIdent() identifiers or compiler output, never request values.
+      Bind values as parameters instead.
+    severity: ERROR
+    languages: [typescript]
+    patterns:
+      - pattern: $TX.unsafe(`...${$BODY.$FIELD}...`, ...)
+      - metavariable-regex:
+          metavariable: $BODY
+          regex: ^(body|input|query|params|values|req)$
+  # Checks each interpolation separately. Inside a postgres.js .unsafe() template or concatenation, only
+  # these are allowed: quoteIdent(...), a quoteIdent-mapped join, `placeholders.join(...)` / `sets.join(...)`,
+  # a numeric `$n` placeholder index (`x.length + 1`) and a ternary between string literals.
+  # Everything else, including any value, must be bound as a $1, $2, ... parameter.
+  # Known limit: `placeholders` and `sets` are trusted by name, so build them only from quoteIdent() output
+  # and literals.
+  - id: hlcrm-no-interpolated-sql-in-unsafe
+    message: >
+      Do not interpolate or concatenate non-identifier values into SQL passed to unsafe().
+      Wrap identifiers in quoteIdent() and bind every value as a $n parameter.
+    severity: ERROR
+    languages: [typescript]
+    patterns:
+      - pattern-either:
+          - pattern: $TX.unsafe(`...${$E}...`, ...)
+          - pattern: $TX.unsafe($E + $REST, ...)
+          - pattern: $TX.unsafe($REST + $E, ...)
+      - metavariable-pattern:
+          metavariable: $E
+          patterns:
+            - pattern-not: quoteIdent(...)
+            - pattern-not: $L.map(quoteIdent).join(...)
+            - pattern-not: placeholders.join(...)
+            - pattern-not: sets.join(...)
+            - pattern-not: $ARR.length + 1
+            - pattern-not: '$C ? "..." : "..."'
+            - pattern-not: '"..."'
+  - id: hlcrm-no-console-log
+    message: Use the structured logger (lib/logger.ts) so redaction applies.
+    severity: ERROR
+    languages: [typescript]
+    paths:
+      include: [/packages/*/src/]
+    pattern: console.log(...)

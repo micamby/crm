@@ -1,0 +1,44 @@
+{
+  "name": "hl-crm-db-workspace",
+  "version": "0.1.0",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/open-gtm/crm.git"
+  },
+  "homepage": "https://github.com/open-gtm/crm#readme",
+  "bugs": {
+    "url": "https://github.com/open-gtm/crm/issues"
+  },
+  "type": "module",
+  "packageManager": "pnpm@10.34.9",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "eslint .",
+    "test": "pnpm -r test",
+    "setup:env": "sh scripts/init-env.sh",
+    "check:licenses": "pnpm --filter @hl-crm-db/web check:licenses"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "eslint": "10.14.0",
+    "eslint-plugin-jsx-a11y": "6.10.2",
+    "eslint-plugin-react-hooks": "7.1.1",
+    "globals": "16.5.0",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.72.1"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ],
+    "overrides": {
+      "minimatch@>=10 <11.0.1": "11.0.3"
+    }
+  }
+}

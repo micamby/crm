@@ -1,0 +1,11 @@
+views:
+  - name: Open tickets
+    object: ticket
+    where: { field: status, op: in, value: [new, open, pending] }
+    sort: [{ field: priority }, { field: created_at }]
+    columns: [subject, customer, priority, status, first_response_time]
+  - name: Unhappy customers
+    object: ticket
+    where: { field: satisfaction, op: lte, value: 2 }
+    sort: [{ field: satisfaction }]
+    columns: [subject, customer, satisfaction]

@@ -1,0 +1,9 @@
+# gitleaks configuration: default rules plus hl-crm-db's own key format.
+[extend]
+useDefault = true
+
+[[rules]]
+id = "hl-crm-db-api-key"
+description = "hl-crm-db API key"
+regex = '''hlcrm_(live|test)_[0-9A-Za-z]{52}'''
+keywords = ["hlcrm_live_", "hlcrm_test_"]

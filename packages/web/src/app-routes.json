@@ -1,0 +1,4 @@
+{
+  "$comment": "The app's top-level client routes. The server answers these (GET or HEAD, from a browser asking for HTML) with the app's HTML shell and nothing else; the build copies this file to dist/app-routes.json, where the server reads it. test/routes.test.ts fails when router.tsx has a route not listed here.",
+  "routes": ["/", "/sign-in", "/signed-out", "/o", "/board", "/tasks", "/inbox", "/settings"]
+}

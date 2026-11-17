@@ -1,0 +1,16 @@
+# Roles the pack creates. A pack's roles can hold only record permissions, restricted:read and views:manage,
+# and installing them needs the installer to hold everything they grant.
+roles:
+  - key: recruiter
+    name: Recruiter
+    description: Runs hiring. Works with candidates, openings and applications.
+    permissions: [records:read, records:write, records:archive, views:manage]
+  - key: interviewer
+    name: Interviewer
+    description: Reads candidates and scores applications. Doesn't see salary expectations.
+    permissions: [records:read, records:write]
+    objects:
+      job_opening: { write: false }
+      candidate: { write: false }
+    fields:
+      candidate: { expected_salary: none, home_address: none }

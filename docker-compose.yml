@@ -1,0 +1,146 @@
+# Runs the published image. Run `sh scripts/init-env.sh` once, then `docker compose up -d`.
+# Pin a release with HLCRM_VERSION in .env (default: latest).
+# To build from source instead: docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
+name: hl-crm-db
+
+x-image: &image ghcr.io/open-gtm/crm:${HLCRM_VERSION:-latest}
+
+# Hardening shared by every app container (the image is distroless and runs as a non-root user).
+x-hardened: &hardened
+  read_only: true
+  tmpfs:
+    - /tmp
+  cap_drop: [ALL]
+  security_opt:
+    - no-new-privileges:true
+  pids_limit: 256
+
+x-app: &app
+  <<: *hardened
+  image: *image
+  restart: unless-stopped
+  environment: &app-env
+    NODE_ENV: production
+    LOG_LEVEL: info
+    DATABASE_URL: postgres://hlcrm_app:${HLCRM_APP_PASSWORD:?run sh scripts/init-env.sh}@postgres:5432/hlcrm
+    HLCRM_MASTER_KEY: ${HLCRM_MASTER_KEY:?run sh scripts/init-env.sh}
+    HLCRM_API_URL: http://api:8787
+    BLOB_DIR: /data/blobs
+    WEBHOOK_ALLOW_INSECURE_TARGETS: ${WEBHOOK_ALLOW_INSECURE_TARGETS:-false}
+    SMTP_URL: ${SMTP_URL:-}
+    SMTP_FROM: ${SMTP_FROM:-hl-crm-db <alerts@localhost>}
+    PUBLIC_URL: ${PUBLIC_URL:-}
+    SESSION_IDLE_TIMEOUT_MINUTES: ${SESSION_IDLE_TIMEOUT_MINUTES:-720}
+    SESSION_ABSOLUTE_TIMEOUT_HOURS: ${SESSION_ABSOLUTE_TIMEOUT_HOURS:-168}
+    PASSWORD_SIGN_IN: ${PASSWORD_SIGN_IN:-true}
+    PASSWORD_BREACH_CHECK: ${PASSWORD_BREACH_CHECK:-false}
+    OIDC_ISSUER: ${OIDC_ISSUER:-}
+    OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-}
+    OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:-}
+    OIDC_DISPLAY_NAME: ${OIDC_DISPLAY_NAME:-single sign-on}
+    OIDC_ALLOWED_DOMAINS: ${OIDC_ALLOWED_DOMAINS:-}
+    OIDC_ALLOW_INSECURE_ISSUER: ${OIDC_ALLOW_INSECURE_ISSUER:-false}
+    # OAuth for the remote MCP servers (docs/mcp/oauth.md): off until MCP_PUBLIC_URL is set.
+    MCP_PUBLIC_URL: ${MCP_PUBLIC_URL:-}
+    MCP_SERVICE_SECRET: ${MCP_SERVICE_SECRET:-}
+    OAUTH_ACCESS_TOKEN_MINUTES: ${OAUTH_ACCESS_TOKEN_MINUTES:-60}
+    OAUTH_REFRESH_TOKEN_DAYS: ${OAUTH_REFRESH_TOKEN_DAYS:-30}
+    OAUTH_GRANT_MAX_DAYS: ${OAUTH_GRANT_MAX_DAYS:-180}
+    # Automations: per-workspace hourly caps, per-automation and per-recipient email caps (docs/automations.md).
+    AUTOMATION_ACTIONS_PER_HOUR: ${AUTOMATION_ACTIONS_PER_HOUR:-5000}
+    AUTOMATION_HTTP_PER_HOUR: ${AUTOMATION_HTTP_PER_HOUR:-500}
+    AUTOMATION_EMAILS_PER_HOUR: ${AUTOMATION_EMAILS_PER_HOUR:-200}
+    AUTOMATION_EMAILS_PER_AUTOMATION_HOUR: ${AUTOMATION_EMAILS_PER_AUTOMATION_HOUR:-50}
+    AUTOMATION_EMAILS_PER_RECIPIENT_DAY: ${AUTOMATION_EMAILS_PER_RECIPIENT_DAY:-5}
+    # The web UI the api serves at PUBLIC_URL (packages/web/README.md). The image has it in /app/web;
+    # WEB_UI_DIR is a path inside the container, for a fork's own build mounted there. Empty: the image's.
+    WEB_UI: ${WEB_UI:-true}
+    WEB_UI_DIR: ${WEB_UI_DIR:-}
+  volumes:
+    - blobs:/data/blobs
+  depends_on:
+    migrate:
+      condition: service_completed_successfully
+
+services:
+  postgres:
+    image: postgres:17.6@sha256:00bc86618629af00d2937fdc5a5d63db3ff8450acf52f0636ec813c7f4902929
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?run sh scripts/init-env.sh}
+      HLCRM_MIGRATOR_PASSWORD: ${HLCRM_MIGRATOR_PASSWORD:?run sh scripts/init-env.sh}
+      HLCRM_APP_PASSWORD: ${HLCRM_APP_PASSWORD:?run sh scripts/init-env.sh}
+      # Development and CI only: set to true to also create the hlcrm_test database on first init.
+      HLCRM_CREATE_TEST_DB: ${HLCRM_CREATE_TEST_DB:-}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./deploy/postgres/init-roles.sh:/docker-entrypoint-initdb.d/10-init-roles.sh:ro
+    ports:
+      - "127.0.0.1:5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d hlcrm"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  migrate:
+    <<: *hardened
+    image: *image
+    command: ["migrate"]
+    environment:
+      DATABASE_URL: postgres://hlcrm_app:${HLCRM_APP_PASSWORD:?run sh scripts/init-env.sh}@postgres:5432/hlcrm
+      MIGRATOR_DATABASE_URL: postgres://hlcrm_migrator:${HLCRM_MIGRATOR_PASSWORD:?run sh scripts/init-env.sh}@postgres:5432/hlcrm
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  api:
+    <<: *app
+    command: ["api"]
+    environment:
+      <<: *app-env
+      # Trust X-Forwarded-For only when a reverse proxy you control sits in front of the API.
+      TRUST_PROXY: ${TRUST_PROXY:-false}
+    ports:
+      - "127.0.0.1:8787:8787"
+    healthcheck:
+      test: ["CMD", "/nodejs/bin/node", "dist/cli.js", "healthcheck", "api"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  # The MCP server holds no database credentials or keys: it calls the API with each caller's own key
+  # or, for OAuth, with the caller's token plus MCP_SERVICE_SECRET, which the API requires for those.
+  mcp:
+    <<: *hardened
+    image: *image
+    restart: unless-stopped
+    command: ["mcp"]
+    environment:
+      NODE_ENV: production
+      HLCRM_API_URL: http://api:8787
+      MCP_ALLOWED_ORIGINS: ${MCP_ALLOWED_ORIGINS:-}
+      # OAuth for MCP: the issuer (PUBLIC_URL), the endpoints' public origin, and the secret shared with the api service.
+      PUBLIC_URL: ${PUBLIC_URL:-}
+      MCP_PUBLIC_URL: ${MCP_PUBLIC_URL:-}
+      MCP_SERVICE_SECRET: ${MCP_SERVICE_SECRET:-}
+      TRUST_PROXY: ${TRUST_PROXY:-false}
+    ports:
+      - "127.0.0.1:8788:8788"
+    healthcheck:
+      test: ["CMD", "/nodejs/bin/node", "dist/cli.js", "healthcheck", "mcp"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    depends_on:
+      api:
+        condition: service_healthy
+
+  worker:
+    <<: *app
+    command: ["worker"]
+
+volumes:
+  pgdata:
+  blobs:

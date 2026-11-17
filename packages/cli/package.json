@@ -1,0 +1,41 @@
+{
+  "name": "hl-crm-db",
+  "version": "0.1.0",
+  "private": true,
+  "description": "crm: the command-line client for hl-crm-db (schema-as-code, CSV import and export, administration)",
+  "type": "module",
+  "files": [
+    "dist",
+    "LICENSE"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/open-gtm/crm.git",
+    "directory": "packages/cli"
+  },
+  "homepage": "https://github.com/open-gtm/crm#readme",
+  "bugs": {
+    "url": "https://github.com/open-gtm/crm/issues"
+  },
+  "bin": {
+    "crm": "dist/main.js"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@hl-crm-db/sdk": "workspace:*",
+    "commander": "14.0.3",
+    "yaml": "2.9.1"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.2",
+    "vitest": "4.1.12"
+  }
+}

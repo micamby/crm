@@ -1,0 +1,62 @@
+# The schema part: the schema document format (docs/cli.md), without IDs. The server records which IDs the pack owns.
+objects:
+  - name: job_opening
+    label: Job opening
+    plural_label: Job openings
+    id_prefix: job
+    display_field: title
+    owned: true
+    fields:
+      - { name: title, type: text, required: true }
+      - { name: department, type: text }
+      - { name: location, type: address }
+      - name: status
+        type: status
+        values: [{ key: open, label: Open }, { key: on_hold, label: On hold }, { key: closed, label: Closed }]
+        initial: open
+      - { name: remote_share, label: Remote share, type: percent, description: "Share of the week worked remotely" }
+      - { name: salary_min, type: currency }
+      - { name: salary_max, type: currency }
+  - name: candidate
+    label: Candidate
+    plural_label: Candidates
+    id_prefix: cand
+    display_field: full_name
+    owned: true
+    fields:
+      - { name: full_name, type: text, required: true }
+      - { name: email, type: email, unique: true, sensitivity: confidential }
+      - { name: phone, type: phone, sensitivity: confidential }
+      - { name: home_address, type: address, sensitivity: confidential }
+      - { name: rating, type: rating, max: 5 }
+      - { name: notice_period, type: duration, description: "e.g. P4W" }
+      - { name: expected_salary, type: currency, sensitivity: confidential }
+      - name: source
+        type: single_select
+        values: [{ key: referral, label: Referral }, { key: job_board, label: Job board }, { key: sourced, label: Sourced }, { key: inbound, label: Inbound }]
+      - { name: profile, type: json, shape: { type: object, properties: { links: array, languages: array } } }
+  - name: application
+    label: Application
+    plural_label: Applications
+    id_prefix: appl
+    owned: true
+    fields:
+      - { name: candidate, type: relation, relation: { to: candidate }, required: true }
+      - { name: job, type: relation, relation: { to: job_opening }, required: true }
+      - name: stage
+        type: status
+        values:
+          - { key: applied, label: Applied }
+          - { key: screening, label: Screening }
+          - { key: interview, label: Interview }
+          - { key: offer, label: Offer }
+          - { key: hired, label: Hired }
+          - { key: rejected, label: Rejected }
+        initial: applied
+      - { name: score, type: rating, max: 10 }
+      - { name: time_to_first_reply, type: duration }
+      - { name: notes, type: long_text }
+  # A standard object gains a field; a pack never changes a standard object otherwise.
+  - name: contact
+    fields:
+      - { name: candidate_profile, label: Candidate profile, type: relation, relation: { to: candidate } }
