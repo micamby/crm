@@ -972,7 +972,7 @@ describe("one address, one proof", () => {
   it("the SQL and JavaScript canonical forms agree on awkward inputs, and only A-Z fold", async () => {
     const inputs = ["Alice@Example.COM", "  Bob@x.io\t", "\u212aelvin@x.io", "\u0130stanbul@x.io", "\u0131@x.io", "\u00c0\u00c9\u00ce@x.io", "STRA\u1e9eE@x.io",
       "\u01c5@x.io", "\u00a0nbsp@x.io\u00a0", "\nA@B.C\r\n", "\uff21\uff22@x.io", "A\u0307@x.io", "MiXeD.CaSe+TAG@Sub.Example.ORG", "\u000bV@x.io\f", "\u03a3@x.io", ""];
-    const rows = await sql<{ x: string; c: string }[]>`SELECT x, app.canonical_email(x) AS c FROM unnest(${sql.array(inputs)}::text[]) AS x`;
+    const rows = await sql<{ x: string; c: string }[]>`SELECT x, app.canonical_email(x) AS c FROM unnest(${inputs}::text[]) AS x`;
     expect(rows).toHaveLength(inputs.length);
     for (const r of rows) expect(r.c, JSON.stringify(r.x)).toBe(canonicalEmail(r.x));
     expect(canonicalEmail("  MiXeD@Example.ORG\n")).toBe("mixed@example.org");
