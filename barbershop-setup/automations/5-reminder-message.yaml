@@ -1,0 +1,4 @@
+name: New client - write their reminder message
+trigger: { type: event, event: contact.created }
+actions:
+  - { type: update_record, values: { reminder_text: "Hey {{record.first_name}}, it's been a while since your last cut. Want me to get you booked in this week? - MICROSPACE" } }

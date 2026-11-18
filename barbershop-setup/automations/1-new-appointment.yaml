@@ -1,0 +1,26 @@
+name: New appointment - fill in summary, next booking and rebooks
+trigger: { type: event, event: appointment.created }
+actions:
+  - { id: c, type: find_records, object: contact, where: { field: id, op: eq, value: "{{record.client}}" }, limit: 1 }
+  - { type: update_record, values: { summary: "{{steps.c.first.first_name}} {{steps.c.first.last_name}}" } }
+  - type: update_record
+    if: { field: status, op: eq, value: booked }
+    object: contact
+    record: "{{record.client}}"
+    values: { next_booked_at: "{{record.starts_at}}", overdue: false }
+  # Rebook rule: a visit counts as rebooked when the next cut is booked before leaving or within 3 days after it.
+  - id: recent
+    type: find_records
+    object: appointment
+    where:
+      and:
+        - { field: client, op: eq, value: "{{record.client}}" }
+        - { field: id, op: neq, value: "{{record.id}}" }
+        - { field: status, op: in, value: [booked, completed] }
+        - { field: starts_at, op: gte, value: "{{now-3d}}" }
+        - { field: starts_at, op: lte, value: "{{now}}" }
+    limit: 5
+  - type: for_each
+    over: recent
+    steps:
+      - { type: update_record, object: appointment, record: "{{item.id}}", values: { rebooked: true } }

@@ -1,0 +1,5 @@
+roles:
+  - key: barber
+    name: Barber
+    description: Works with clients and appointments. Can't archive records.
+    permissions: [records:read, records:write, views:manage]

@@ -34,3 +34,8 @@ pgdata/
 
 # Local agent worktrees
 .claude/worktrees/
+
+# Local files for the barbershop setup
+.cli-build.log
+barbershop-setup/.test_ids
+barbershop-setup/crm.schema.yaml

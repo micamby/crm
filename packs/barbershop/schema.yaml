@@ -1,0 +1,90 @@
+# Clients are the standard Contact object (its owner is the client's barber). Appointments are a custom object
+# (its owner is the barber who does the cut). Automations and alerts are set up separately: packs can't carry them.
+objects:
+  - name: barber
+    label: Barber
+    plural_label: Barbers
+    id_prefix: barb
+    display_field: name
+    description: A barber in the shop. Appointments link to a barber, so the numbers can be split per barber.
+    fields:
+      - { name: name, type: text, required: true }
+      - { name: member_email, label: Sign-in email, type: email, description: "The email this barber signs in to the app with" }
+      - name: home_chair
+        label: Usual chair
+        type: single_select
+        values:
+          - { key: chair_1, label: Chair 1 }
+          - { key: chair_2, label: Chair 2 }
+          - { key: chair_3, label: Chair 3 }
+          - { key: chair_4, label: Chair 4 }
+          - { key: chair_5, label: Chair 5 }
+      - { name: active, type: boolean, default: true }
+  - name: appointment
+    label: Appointment
+    plural_label: Appointments
+    id_prefix: appt
+    display_field: summary
+    owned: true
+    description: One visit to the chair.
+    fields:
+      - { name: summary, type: text, description: "Filled in automatically, e.g. Jay Ruiz - Skin fade" }
+      - { name: client, type: relation, relation: { to: contact, cardinality: many_to_one }, required: true }
+      - { name: barber, type: relation, relation: { to: barber, cardinality: many_to_one }, required: true }
+      - { name: starts_at, label: Date and time, type: datetime, required: true }
+      - name: service
+        type: single_select
+        values:
+          - { key: haircut, label: Haircut }
+          - { key: skin_fade, label: Skin fade }
+          - { key: cut_and_beard, label: Cut and beard }
+          - { key: beard_trim, label: Beard trim }
+          - { key: lineup, label: Line-up }
+          - { key: kids_cut, label: Kids cut }
+      - name: chair
+        type: single_select
+        values:
+          - { key: chair_1, label: Chair 1 }
+          - { key: chair_2, label: Chair 2 }
+          - { key: chair_3, label: Chair 3 }
+          - { key: chair_4, label: Chair 4 }
+          - { key: chair_5, label: Chair 5 }
+      - name: status
+        type: status
+        values:
+          - { key: booked, label: Booked }
+          - { key: completed, label: Completed }
+          - { key: no_show, label: No-show }
+          - { key: cancelled, label: Cancelled }
+        initial: booked
+        transitions: { booked: [completed, no_show, cancelled], completed: [booked], no_show: [booked, completed], cancelled: [booked] }
+      - name: booked_via
+        label: Booked via
+        type: single_select
+        values: [{ key: in_shop, label: In the shop }, { key: square, label: Square online }]
+        default: in_shop
+      - { name: visit_notes, label: What we chatted about, type: long_text }
+      - { name: rebooked, type: boolean, default: false, description: "Next cut booked before leaving or within 3 days after this visit" }
+  - name: contact
+    fields:
+      - name: return_every
+        label: Comes back every
+        type: single_select
+        values:
+          - { key: w2, label: 2 weeks }
+          - { key: w3, label: 3 weeks }
+          - { key: w4, label: 4 weeks }
+          - { key: w5, label: 5 weeks }
+          - { key: w6, label: 6 weeks }
+          - { key: w8, label: 8 weeks }
+          - { key: w10, label: 10 weeks }
+          - { key: w12, label: 12 weeks }
+      - { name: usual_cut, label: Usual cut, type: text }
+      - { name: last_chat, label: Last time we chatted about, type: long_text }
+      - { name: last_visit_at, label: Last visit, type: datetime }
+      - { name: next_visit_due, label: Next visit due, type: date }
+      - { name: next_booked_at, label: Next booking, type: datetime }
+      - { name: visit_count, label: Visits, type: number, default: 0 }
+      - { name: regular, type: boolean, default: false }
+      - { name: overdue, label: Overdue, type: boolean, default: false }
+      - { name: reminder_text, label: Reminder message, type: long_text }

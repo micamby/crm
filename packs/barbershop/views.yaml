@@ -1,0 +1,26 @@
+views:
+  - name: Call-back list
+    object: contact
+    where: { field: overdue, op: eq, value: true }
+    sort: [{ field: next_visit_due }]
+    columns: [first_name, last_name, phone, owner, next_visit_due, return_every, reminder_text]
+  - name: Regulars
+    object: contact
+    where: { field: regular, op: eq, value: true }
+    sort: [{ field: visit_count, dir: desc }]
+    columns: [first_name, last_name, owner, visit_count, usual_cut, last_visit_at]
+  - name: Upcoming appointments
+    object: appointment
+    where: { field: status, op: eq, value: booked }
+    sort: [{ field: starts_at }]
+    columns: [starts_at, client, barber, chair, service, booked_via]
+  - name: No-shows
+    object: appointment
+    where: { field: status, op: eq, value: no_show }
+    sort: [{ field: starts_at, dir: desc }]
+    columns: [starts_at, client, barber, service]
+  - name: Completed visits
+    object: appointment
+    where: { field: status, op: eq, value: completed }
+    sort: [{ field: starts_at, dir: desc }]
+    columns: [starts_at, client, barber, service, rebooked]

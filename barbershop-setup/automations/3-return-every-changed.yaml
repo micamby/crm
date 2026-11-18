@@ -1,0 +1,12 @@
+name: Comes back every changed - recalculate next visit due
+trigger: { type: event, event: contact.updated, changed_fields: [return_every] }
+condition: { field: last_visit_at, op: is_null, value: false }
+actions:
+  - { type: update_record, if: { field: return_every, op: eq, value: w2 }, values: { next_visit_due: "{{record.last_visit_at | add_days:14 | date}}" } }
+  - { type: update_record, if: { field: return_every, op: eq, value: w3 }, values: { next_visit_due: "{{record.last_visit_at | add_days:21 | date}}" } }
+  - { type: update_record, if: { field: return_every, op: eq, value: w4 }, values: { next_visit_due: "{{record.last_visit_at | add_days:28 | date}}" } }
+  - { type: update_record, if: { field: return_every, op: eq, value: w5 }, values: { next_visit_due: "{{record.last_visit_at | add_days:35 | date}}" } }
+  - { type: update_record, if: { field: return_every, op: eq, value: w6 }, values: { next_visit_due: "{{record.last_visit_at | add_days:42 | date}}" } }
+  - { type: update_record, if: { field: return_every, op: eq, value: w8 }, values: { next_visit_due: "{{record.last_visit_at | add_days:56 | date}}" } }
+  - { type: update_record, if: { field: return_every, op: eq, value: w10 }, values: { next_visit_due: "{{record.last_visit_at | add_days:70 | date}}" } }
+  - { type: update_record, if: { field: return_every, op: eq, value: w12 }, values: { next_visit_due: "{{record.last_visit_at | add_days:84 | date}}" } }

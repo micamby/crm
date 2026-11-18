@@ -1,0 +1,14 @@
+name: Every morning - put overdue clients on the call-back list
+trigger: { type: schedule, daily: { at: "07:00" }, timezone: America/Chicago }
+actions:
+  - type: for_each
+    query:
+      object: contact
+      where:
+        and:
+          - { field: next_visit_due, op: lt, value: "{{today}}" }
+          - { field: overdue, op: eq, value: false }
+          - { or: [ { field: next_booked_at, op: is_null, value: true }, { field: next_booked_at, op: lt, value: "{{now}}" } ] }
+      limit: 200
+    steps:
+      - { type: update_record, object: contact, record: "{{item.id}}", values: { overdue: true } }

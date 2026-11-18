@@ -1,0 +1,12 @@
+format: hl-crm-db/schema@1
+schema_version: 19
+objects:
+  - name: contact
+    label: Client
+    plural_label: Clients
+    description: A barbershop client. The owner is the client's barber.
+    fields:
+      - { name: owner, type: relation, label: Barber }
+      - { name: job_title, type: text, hidden: true }
+      - { name: account, type: relation, hidden: true }
+      - { name: lifecycle_stage, type: status, hidden: true }
