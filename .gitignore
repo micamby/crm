@@ -39,3 +39,4 @@ pgdata/
 .cli-build.log
 barbershop-setup/.test_ids
 barbershop-setup/crm.schema.yaml
+barbershop-dashboard/.server.log
