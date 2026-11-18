@@ -146,12 +146,14 @@ function minutesIntoDay(iso) {
   return h * 60 + mi;
 }
 
-async function calendarPage(ymd) {
+async function calendarPage(ymd, notice = "") {
   const { start, end } = dayBounds(ymd);
-  const [appts, barbers] = await Promise.all([
+  const [appts, barbers, clients] = await Promise.all([
     queryAll("appointment", { and: [{ field: "starts_at", op: "gte", value: start.toISOString() }, { field: "starts_at", op: "lt", value: end.toISOString() }] }),
     queryAll("barber"),
+    queryAll("contact"),
   ]);
+  clients.sort((a, b) => `${a.first_name} ${a.last_name}`.localeCompare(`${b.first_name} ${b.last_name}`));
   const cols = barbers.filter((b) => b.active !== false).sort((a, b) => String(a.home_chair ?? "").localeCompare(String(b.home_chair ?? "")) || a.name.localeCompare(b.name));
   const height = (CLOSE_HOUR - OPEN_HOUR) * 60 * PX_PER_MIN;
   const label = new Date(start.getTime() + 12 * 3600000).toLocaleDateString("en-US", { timeZone: TZ, weekday: "long", month: "long", day: "numeric", year: "numeric" });
@@ -175,14 +177,95 @@ async function calendarPage(ymd) {
     <label>Pick a day <input type="date" name="date" value="${esc(ymd)}" onchange="this.form.submit()"></label>
   </form>
 </div>
-<p class="sub">${appts.length} appointment${appts.length === 1 ? "" : "s"}. Click one to open it in the app. To book, use <a href="${esc(CRM)}/o/appointment" target="_blank" rel="noopener">Appointments</a> in the app, then refresh this page.</p>
+${notice ? `<p class="notice">${esc(notice)}</p>` : ""}
+<p class="sub">${appts.length} appointment${appts.length === 1 ? "" : "s"}. <b>Click an empty time</b> in a barber's column to book. Click an appointment to open it in the app.</p>
 <div class="cal" style="--cols:${cols.length}">
   <div class="times" style="height:${height}px">${hours.map((h) => `<span style="top:${(h - OPEN_HOUR) * 60 * PX_PER_MIN}px">${hourLabel(h)}</span>`).join("")}</div>
-  ${cols.map((b) => `<div class="col"><div class="colhead">${esc(b.name)}</div><div class="lane" style="height:${height}px">
+  ${cols.map((b) => `<div class="col"><div class="colhead">${esc(b.name)}</div><div class="lane" data-barber="${esc(b.id)}" data-name="${esc(b.name)}" data-chair="${esc(b.home_chair ?? "")}" style="height:${height}px">
     ${hours.map((h) => `<i style="top:${(h - OPEN_HOUR) * 60 * PX_PER_MIN}px"></i>`).join("")}
     ${appts.filter((a) => a.barber === b.id).map(block).join("")}</div></div>`).join("")}
 </div>
-${unassigned.length ? `<p class="sub">${unassigned.length} appointment(s) have no barber set.</p>` : ""}`);
+${unassigned.length ? `<p class="sub">${unassigned.length} appointment(s) have no barber set.</p>` : ""}
+<dialog id="book"><form method="post" action="/book">
+  <h2>Book an appointment</h2>
+  <p id="bookwhen" class="sub"></p>
+  <input type="hidden" name="date" value="${esc(ymd)}"><input type="hidden" name="barber" id="f-barber">
+  <label>Time <input type="time" name="time" id="f-time" step="900" required></label>
+  <label>Client
+    <select name="client" id="f-client">
+      <option value="">Choose a client...</option>
+      ${clients.map((c) => `<option value="${esc(c.id)}">${esc(c.first_name)} ${esc(c.last_name)}${c.phone ? " · " + esc(c.phone) : ""}</option>`).join("")}
+      <option value="new">+ New client</option>
+    </select></label>
+  <div id="newclient" hidden>
+    <label>First name <input name="first_name"></label>
+    <label>Last name <input name="last_name"></label>
+    <label>Mobile phone <input name="phone" type="tel" placeholder="e.g. 312 555 0123"></label>
+  </div>
+  <label>Service <select name="service" required>${Object.entries(SERVICE).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join("")}</select></label>
+  <label>Chair <select name="chair" id="f-chair">${[1, 2, 3, 4, 5].map((n) => `<option value="chair_${n}">Chair ${n}</option>`).join("")}</select></label>
+  <label>Booked <select name="booked_via"><option value="in_shop">In the shop</option><option value="square">Square online</option></select></label>
+  <div class="actions"><button type="button" class="btn" onclick="document.getElementById('book').close()">Cancel</button><button class="btn primary">Book it</button></div>
+</form></dialog>
+<script>
+const PX=${PX_PER_MIN}, OPEN=${OPEN_HOUR};
+const dlg=document.getElementById("book"), sel=document.getElementById("f-client"), nc=document.getElementById("newclient");
+sel.addEventListener("change",()=>{nc.hidden=sel.value!=="new";nc.querySelectorAll("input").forEach(i=>i.required=sel.value==="new"&&i.name!=="phone");});
+dlg.querySelector("form").addEventListener("submit",(e)=>{if(!sel.value){e.preventDefault();alert("Choose a client, or pick + New client.");}});
+document.querySelectorAll(".lane").forEach(l=>l.addEventListener("click",(e)=>{
+  if(e.target.closest(".appt"))return;
+  const y=e.clientY-l.getBoundingClientRect().top, m=Math.round((OPEN*60+y/PX)/15)*15;
+  const hh=String(Math.floor(m/60)).padStart(2,"0"), mm=String(m%60).padStart(2,"0");
+  document.getElementById("f-time").value=hh+":"+mm; document.getElementById("f-barber").value=l.dataset.barber;
+  if(l.dataset.chair)document.getElementById("f-chair").value=l.dataset.chair;
+  document.getElementById("bookwhen").textContent="With "+l.dataset.name+" on ${esc(label)}";
+  sel.value=""; nc.hidden=true; dlg.showModal();
+}));
+</script>`);
+}
+
+// Reads a form post (small bodies only).
+function readForm(req) {
+  return new Promise((resolve, reject) => {
+    let body = "";
+    req.on("data", (c) => { body += c; if (body.length > 20000) { reject(new Error("Too much data")); req.destroy(); } });
+    req.on("end", () => resolve(Object.fromEntries(new URLSearchParams(body))));
+  });
+}
+
+async function crmWrite(method, path, body) {
+  const res = await fetch(`${CRM}${path}`, { method, headers: { Authorization: `Bearer ${KEY}`, "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  const out = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(out.detail ?? `CRM said ${res.status}`);
+  return out.data;
+}
+
+async function book(f) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(f.date ?? "") || !/^\d{2}:\d{2}$/.test(f.time ?? "")) throw new Error("Pick a day and a time");
+  if (!/^barb_\w+$/.test(f.barber ?? "")) throw new Error("Pick a barber's column");
+  if (!SERVICE[f.service]) throw new Error("Pick a service");
+  const barber = (await queryAll("barber", { field: "id", op: "eq", value: f.barber }))[0];
+  if (!barber) throw new Error("That barber wasn't found");
+  let client = f.client;
+  if (client === "new") {
+    const first = String(f.first_name ?? "").trim(), last = String(f.last_name ?? "").trim();
+    if (!first) throw new Error("Type the new client's first name");
+    const owner = barber.member_email ? (await (await fetch(`${CRM}/v1/users`, { headers: { Authorization: `Bearer ${KEY}` } })).json()).data?.find((u) => u.email === barber.member_email)?.id : undefined;
+    const phone = String(f.phone ?? "").replace(/[^\d+]/g, "");
+    const made = await crmWrite("POST", "/v1/objects/contact/records", {
+      first_name: first, ...(last ? { last_name: last } : {}), ...(phone ? { phone: phone.startsWith("+") ? phone : phone.length === 10 ? "+1" + phone : phone } : {}),
+      ...(owner ? { owner } : {}), return_every: "w4",
+    });
+    client = made.id;
+  } else if (!/^con_\w+$/.test(client ?? "")) throw new Error("Choose a client");
+  const { start } = dayBounds(f.date);
+  const [h, m] = f.time.split(":").map(Number);
+  const when = new Date(start.getTime() + (h * 60 + m) * 60000);
+  await crmWrite("POST", "/v1/objects/appointment/records", {
+    client, barber: barber.id, starts_at: when.toISOString(), service: f.service,
+    ...(/^chair_[1-9]$/.test(f.chair ?? "") ? { chair: f.chair } : {}), booked_via: f.booked_via === "square" ? "square" : "in_shop",
+  });
+  return when.toLocaleTimeString("en-US", { timeZone: TZ, hour: "numeric", minute: "2-digit" });
 }
 
 function shell(title, body) {
@@ -204,17 +287,35 @@ main{max-width:1200px;margin:0 auto;padding:16px 16px 48px}h1{margin:0;font-size
 .lane{position:relative}.lane i{position:absolute;left:0;right:0;border-top:1px solid var(--line)}
 .appt{position:absolute;left:4px;right:4px;border-radius:8px;padding:4px 8px;font-size:13px;line-height:1.3;overflow:hidden;color:var(--fg);text-decoration:none;background:var(--book);border-left:4px solid var(--accent)}
 .appt span{display:block;color:var(--muted)}.appt.s-completed{background:var(--done);border-left-color:var(--muted)}.appt.s-no_show,.appt.s-cancelled{background:var(--miss);border-left-color:#c0533f}
-.appt:hover{outline:2px solid var(--accent)}
+.appt:hover{outline:2px solid var(--accent)}.lane{cursor:copy}
+.notice{background:var(--book);border-radius:8px;padding:10px 14px}
+dialog{border:1px solid var(--line);border-radius:14px;background:var(--card);color:var(--fg);padding:20px;width:min(420px,92vw)}dialog::backdrop{background:#0006}
+dialog h2{margin:0 0 4px}dialog label{display:block;margin:10px 0}dialog input,dialog select{display:block;width:100%;box-sizing:border-box;font:inherit;padding:8px;margin-top:4px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--fg)}
+.actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}.btn.primary{background:var(--accent);color:#fff;border-color:var(--accent);font:inherit;cursor:pointer}button.btn{font:inherit;cursor:pointer}
 </style></head><body><nav class="top"><b>MICROSPACE</b><a href="/" class="${title === "Numbers" ? "on" : ""}">Numbers</a><a href="/calendar" class="${title === "Calendar" ? "on" : ""}">Calendar</a><a href="${esc(CRM)}" target="_blank" rel="noopener">Open the app</a></nav><main>${body}</main></body></html>`;
 }
 
 http.createServer(async (req, res) => {
   const url = new URL(req.url, "http://localhost");
+  if (req.method === "POST" && url.pathname === "/book") {
+    const origin = req.headers.origin ?? "";
+    if (origin !== `http://localhost:${PORT}` && origin !== `http://127.0.0.1:${PORT}`) { res.writeHead(403).end("Booking only works from this computer's calendar page."); return; }
+    let f = {};
+    try {
+      f = await readForm(req);
+      const time = await book(f);
+      res.writeHead(303, { Location: `/calendar?date=${encodeURIComponent(f.date)}&booked=${encodeURIComponent(time)}` }).end();
+    } catch (e) {
+      const day = /^\d{4}-\d{2}-\d{2}$/.test(f.date ?? "") ? f.date : todayYmd();
+      res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" }).end(await calendarPage(day, `Not booked: ${e.message}`));
+    }
+    return;
+  }
   if (!["/", "/index.html", "/calendar"].includes(url.pathname)) { res.writeHead(404).end("Not found"); return; }
   try {
     const date = url.searchParams.get("date");
     const html = url.pathname === "/calendar"
-      ? await calendarPage(/^\d{4}-\d{2}-\d{2}$/.test(date ?? "") ? date : todayYmd())
+      ? await calendarPage(/^\d{4}-\d{2}-\d{2}$/.test(date ?? "") ? date : todayYmd(), url.searchParams.get("booked") ? `Booked for ${url.searchParams.get("booked")}.` : "")
       : page(await numbers());
     res.writeHead(200, { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" }).end(html);
   } catch (e) {
