@@ -29,3 +29,7 @@ views:
     where: { field: active, op: eq, value: true }
     sort: [{ field: name }]
     columns: [name, length_minutes, price]
+  - name: Barbers' own service times
+    object: barber_service_time
+    sort: [{ field: summary }]
+    columns: [barber, service, length_minutes]

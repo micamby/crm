@@ -153,7 +153,9 @@ async function calendarPage(ymd, notice = "") {
     queryAll("barber"),
     queryAll("contact"),
   ]);
-  const services = await queryAll("service");
+  const [services, own] = await Promise.all([queryAll("service"), queryAll("barber_service_time")]);
+  const ownTimes = {};
+  for (const t of own) (ownTimes[t.barber] ??= {})[t.service] = Number(t.length_minutes);
   const svcName = new Map(services.map((x) => [x.id, x.name]));
   const active = services.filter((x) => x.active !== false).sort((a, b) => a.name.localeCompare(b.name));
   clients.sort((a, b) => `${a.first_name} ${a.last_name}`.localeCompare(`${b.first_name} ${b.last_name}`));
@@ -211,7 +213,7 @@ ${unassigned.length ? `<p class="sub">${unassigned.length} appointment(s) have n
     <label>Last name <input name="last_name"></label>
     <label>Mobile phone <input name="phone" type="tel" placeholder="e.g. 312 555 0123"></label>
   </div>
-  <label>Service <select name="service" required>${active.map((x) => `<option value="${esc(x.id)}">${esc(x.name)} (${esc(x.length_minutes)} min)</option>`).join("")}</select></label>
+  <label>Service <select name="service" required>${active.map((x) => `<option value="${esc(x.id)}" data-name="${esc(x.name)}" data-len="${esc(x.length_minutes)}">${esc(x.name)} (${esc(x.length_minutes)} min)</option>`).join("")}</select></label>
   ${active.length ? "" : `<p class="notice">No services yet: add them under <a href="${esc(CRM)}/o/service" target="_blank" rel="noopener">Services</a> in the app.</p>`}
   <label class="inline"><input type="checkbox" name="anyway" value="1"> Book even if it overlaps another appointment</label>
 
@@ -219,7 +221,10 @@ ${unassigned.length ? `<p class="sub">${unassigned.length} appointment(s) have n
   <div class="actions"><button type="button" class="btn" onclick="document.getElementById('book').close()">Cancel</button><button class="btn primary">Book it</button></div>
 </form></dialog>
 <script>
-const PX=${PX_PER_MIN}, OPEN=${OPEN_HOUR};
+const PX=${PX_PER_MIN}, OPEN=${OPEN_HOUR}, OWN=${JSON.stringify(ownTimes).replace(/</g, "\\u003c")};
+const bsel=document.getElementById("f-barber");
+function lengths(){const o=OWN[bsel.value]||{};document.querySelectorAll('select[name=service] option').forEach(op=>{const n=o[op.value]||op.dataset.len;op.textContent=op.dataset.name+" ("+n+" min)";});}
+bsel.addEventListener("change",lengths);
 const dlg=document.getElementById("book"), sel=document.getElementById("f-client"), nc=document.getElementById("newclient");
 sel.addEventListener("change",()=>{nc.hidden=sel.value!=="new";nc.querySelectorAll("input").forEach(i=>i.required=sel.value==="new"&&i.name!=="phone");});
 dlg.querySelector("form").addEventListener("submit",(e)=>{if(!sel.value){e.preventDefault();alert("Choose a client, or pick + New client.");}});
@@ -229,7 +234,7 @@ document.querySelectorAll(".lane").forEach(l=>l.addEventListener("click",(e)=>{
   const hh=String(Math.floor(m/60)).padStart(2,"0"), mm=String(m%60).padStart(2,"0");
   document.getElementById("f-time").value=hh+":"+mm; document.getElementById("f-barber").value=l.dataset.barber;
   document.getElementById("bookwhen").textContent="${esc(label)}";
-  sel.value=""; nc.hidden=true; dlg.showModal();
+  sel.value=""; nc.hidden=true; lengths(); dlg.showModal();
 }));
 </script>`);
 }
@@ -268,9 +273,10 @@ async function book(f) {
   if (!/^serv_\w+$/.test(f.service ?? "")) throw new Error("Pick a service");
   const service = (await queryAll("service", { field: "id", op: "eq", value: f.service }))[0];
   if (!service) throw new Error("That service wasn't found");
-  const len = Number(service.length_minutes) || SLOT_MIN;
   const barber = (await queryAll("barber", { field: "id", op: "eq", value: f.barber }))[0];
   if (!barber) throw new Error("That barber wasn't found");
+  const own = (await queryAll("barber_service_time", { and: [{ field: "barber", op: "eq", value: barber.id }, { field: "service", op: "eq", value: service.id }] }))[0];
+  const len = Number(own?.length_minutes) || Number(service.length_minutes) || SLOT_MIN;
   const client0 = f.client;
   if (client0 !== "new" && !/^con_\w+$/.test(client0 ?? "")) throw new Error("Choose a client");
   let client = client0;

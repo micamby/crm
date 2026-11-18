@@ -1,0 +1,6 @@
+name: Barber service time - fill in its name
+trigger: { type: event, event: barber_service_time.created }
+actions:
+  - { id: b, type: find_records, object: barber, where: { field: id, op: eq, value: "{{record.barber}}" }, limit: 1 }
+  - { id: s, type: find_records, object: service, where: { field: id, op: eq, value: "{{record.service}}" }, limit: 1 }
+  - { type: update_record, values: { summary: "{{steps.b.first.name}} - {{steps.s.first.name}}" } }

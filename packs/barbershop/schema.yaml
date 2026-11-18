@@ -31,6 +31,17 @@ objects:
       - { name: length_minutes, label: Length (minutes), type: number, required: true, validation: { min: 5, max: 480 } }
       - { name: price, type: currency }
       - { name: active, type: boolean, default: true }
+  - name: barber_service_time
+    label: Barber's service time
+    plural_label: Barber service times
+    id_prefix: bst
+    display_field: summary
+    description: Optional. A barber's own length for a service, used instead of the shop's length when booking with that barber.
+    fields:
+      - { name: summary, type: text, description: "e.g. Luis - Skin fade" }
+      - { name: barber, type: relation, relation: { to: barber, cardinality: many_to_one }, required: true }
+      - { name: service, type: relation, relation: { to: service, cardinality: many_to_one }, required: true }
+      - { name: length_minutes, label: Length (minutes), type: number, required: true, validation: { min: 5, max: 480 } }
   - name: appointment
     label: Appointment
     plural_label: Appointments
