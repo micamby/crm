@@ -191,7 +191,10 @@ ${unassigned.length ? `<p class="sub">${unassigned.length} appointment(s) have n
   <p id="bookwhen" class="sub"></p>
   <input type="hidden" name="date" value="${esc(ymd)}">
   <label>Barber <select name="barber" id="f-barber" required>${cols.map((b) => `<option value="${esc(b.id)}">${esc(b.name)}</option>`).join("")}</select></label>
-  <label>Time <input type="time" name="time" id="f-time" step="900" required></label>
+  <label>Time <select name="time" id="f-time" required>${Array.from({ length: (CLOSE_HOUR - OPEN_HOUR) * 4 }, (_, i) => OPEN_HOUR * 60 + i * 15).map((m) => {
+    const h = Math.floor(m / 60), mm = String(m % 60).padStart(2, "0");
+    return `<option value="${String(h).padStart(2, "0")}:${mm}">${((h + 11) % 12) + 1}:${mm} ${h < 12 ? "AM" : "PM"}</option>`;
+  }).join("")}</select></label>
   <label>Client
     <select name="client" id="f-client">
       <option value="">Choose a client...</option>
@@ -215,7 +218,7 @@ sel.addEventListener("change",()=>{nc.hidden=sel.value!=="new";nc.querySelectorA
 dlg.querySelector("form").addEventListener("submit",(e)=>{if(!sel.value){e.preventDefault();alert("Choose a client, or pick + New client.");}});
 document.querySelectorAll(".lane").forEach(l=>l.addEventListener("click",(e)=>{
   if(e.target.closest(".appt"))return;
-  const y=e.clientY-l.getBoundingClientRect().top, m=Math.round((OPEN*60+y/PX)/15)*15;
+  const y=e.clientY-l.getBoundingClientRect().top, m=Math.min(${CLOSE_HOUR * 60 - 15},Math.max(OPEN*60,Math.floor((OPEN*60+y/PX)/15)*15));
   const hh=String(Math.floor(m/60)).padStart(2,"0"), mm=String(m%60).padStart(2,"0");
   document.getElementById("f-time").value=hh+":"+mm; document.getElementById("f-barber").value=l.dataset.barber;
   document.getElementById("bookwhen").textContent="${esc(label)}";
