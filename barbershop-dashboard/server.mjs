@@ -96,7 +96,7 @@ main{max-width:960px;margin:0 auto;padding:24px 16px 48px}h1{margin:0;font-size:
 .tbl{overflow-x:auto;background:var(--card);border:1px solid var(--line);border-radius:12px}table{border-collapse:collapse;width:100%;min-width:520px}
 th,td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--line)}th{color:var(--muted);font-weight:500;font-size:14px}tr:last-child td{border-bottom:0}
 .bar{height:10px;background:var(--accent);border-radius:5px}.day{display:grid;grid-template-columns:110px 1fr 40px;gap:10px;align-items:center;margin:6px 0}
-a{color:var(--accent)}</style></head><body><main>
+a{color:var(--accent)}.top{display:flex;gap:16px;align-items:center;padding:12px 16px;border-bottom:1px solid var(--line);background:var(--card)}.top b{margin-right:auto}.top a{color:var(--fg);text-decoration:none;padding:6px 10px;border-radius:8px}.top a.on{background:var(--line)}</style></head><body><nav class="top"><b>MICROSPACE</b><a href="/" class="on">Numbers</a><a href="/calendar">Calendar</a><a href="${esc(CRM)}" target="_blank" rel="noopener">Open the app</a></nav><main>
 <h1>MICROSPACE numbers</h1><p class="sub">Updated ${esc(n.updated.toLocaleString("en-US", { timeZone: TZ, dateStyle: "medium", timeStyle: "short" }))}. Refresh the page for the latest.</p>
 <div class="cards">
 ${card("Shop rebook rate (30 days)", shopRate === null ? "-" : shopRate + "%", REBOOK_WINDOW_NOTE)}
@@ -117,10 +117,105 @@ ${n.overdue.slice(0, 50).map((c) => `<tr><td><a href="${esc(CRM)}/o/contact/${es
 </main></body></html>`;
 }
 
+
+// ---- Calendar: one day, one column per barber ----
+const SERVICE = { haircut: "Haircut", skin_fade: "Skin fade", cut_and_beard: "Cut and beard", beard_trim: "Beard trim", lineup: "Line-up", kids_cut: "Kids cut" };
+const OPEN_HOUR = 8, CLOSE_HOUR = 20, SLOT_MIN = 45, PX_PER_MIN = 1.3;
+
+function tzOffsetMs(instant) {
+  const local = new Date(instant.toLocaleString("en-US", { timeZone: TZ }));
+  const utc = new Date(instant.toLocaleString("en-US", { timeZone: "UTC" }));
+  return local.getTime() - utc.getTime();
+}
+function dayBounds(ymd) {
+  const [y, m, d] = ymd.split("-").map(Number);
+  const guess = new Date(Date.UTC(y, m - 1, d));
+  const start = new Date(guess.getTime() - tzOffsetMs(guess));
+  return { start, end: new Date(start.getTime() + DAY) };
+}
+function todayYmd() {
+  return new Date().toLocaleDateString("en-CA", { timeZone: TZ });
+}
+function shiftYmd(ymd, days) {
+  const [y, m, d] = ymd.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10);
+}
+function minutesIntoDay(iso) {
+  const parts = new Intl.DateTimeFormat("en-US", { timeZone: TZ, hour: "numeric", minute: "numeric", hourCycle: "h23" }).formatToParts(new Date(iso));
+  const h = Number(parts.find((p) => p.type === "hour").value), mi = Number(parts.find((p) => p.type === "minute").value);
+  return h * 60 + mi;
+}
+
+async function calendarPage(ymd) {
+  const { start, end } = dayBounds(ymd);
+  const [appts, barbers] = await Promise.all([
+    queryAll("appointment", { and: [{ field: "starts_at", op: "gte", value: start.toISOString() }, { field: "starts_at", op: "lt", value: end.toISOString() }] }),
+    queryAll("barber"),
+  ]);
+  const cols = barbers.filter((b) => b.active !== false).sort((a, b) => String(a.home_chair ?? "").localeCompare(String(b.home_chair ?? "")) || a.name.localeCompare(b.name));
+  const height = (CLOSE_HOUR - OPEN_HOUR) * 60 * PX_PER_MIN;
+  const label = new Date(start.getTime() + 12 * 3600000).toLocaleDateString("en-US", { timeZone: TZ, weekday: "long", month: "long", day: "numeric", year: "numeric" });
+  const hours = Array.from({ length: CLOSE_HOUR - OPEN_HOUR + 1 }, (_, i) => OPEN_HOUR + i);
+  const hourLabel = (h) => `${((h + 11) % 12) + 1} ${h < 12 ? "AM" : "PM"}`;
+  const block = (a) => {
+    const top = Math.max(0, (minutesIntoDay(a.starts_at) - OPEN_HOUR * 60) * PX_PER_MIN);
+    const time = new Date(a.starts_at).toLocaleTimeString("en-US", { timeZone: TZ, hour: "numeric", minute: "2-digit" });
+    const who = String(a.summary ?? "Appointment").split(" - ")[0];
+    return `<a class="appt s-${esc(a.status)}" style="top:${top}px;height:${SLOT_MIN * PX_PER_MIN - 4}px" href="${esc(CRM)}/o/appointment/${esc(a.id)}" target="_blank" rel="noopener">
+      <b>${esc(time)} ${esc(who)}</b><span>${esc(SERVICE[a.service] ?? "")}${a.status !== "booked" ? " · " + esc({ completed: "Done", no_show: "No-show", cancelled: "Cancelled" }[a.status] ?? a.status) : ""}${a.booked_via === "square" ? " · Square" : ""}</span></a>`;
+  };
+  const unassigned = appts.filter((a) => !cols.some((b) => b.id === a.barber));
+  return shell("Calendar", `
+<div class="calhead">
+  <h1>${esc(label)}</h1>
+  <form class="nav" method="get" action="/calendar">
+    <a class="btn" href="/calendar?date=${shiftYmd(ymd, -1)}">&larr; Previous day</a>
+    <a class="btn" href="/calendar?date=${todayYmd()}">Today</a>
+    <a class="btn" href="/calendar?date=${shiftYmd(ymd, 1)}">Next day &rarr;</a>
+    <label>Pick a day <input type="date" name="date" value="${esc(ymd)}" onchange="this.form.submit()"></label>
+  </form>
+</div>
+<p class="sub">${appts.length} appointment${appts.length === 1 ? "" : "s"}. Click one to open it in the app. To book, use <a href="${esc(CRM)}/o/appointment" target="_blank" rel="noopener">Appointments</a> in the app, then refresh this page.</p>
+<div class="cal" style="--cols:${cols.length}">
+  <div class="times" style="height:${height}px">${hours.map((h) => `<span style="top:${(h - OPEN_HOUR) * 60 * PX_PER_MIN}px">${hourLabel(h)}</span>`).join("")}</div>
+  ${cols.map((b) => `<div class="col"><div class="colhead">${esc(b.name)}</div><div class="lane" style="height:${height}px">
+    ${hours.map((h) => `<i style="top:${(h - OPEN_HOUR) * 60 * PX_PER_MIN}px"></i>`).join("")}
+    ${appts.filter((a) => a.barber === b.id).map(block).join("")}</div></div>`).join("")}
+</div>
+${unassigned.length ? `<p class="sub">${unassigned.length} appointment(s) have no barber set.</p>` : ""}`);
+}
+
+function shell(title, body) {
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MICROSPACE ${esc(title)}</title><style>
+:root{color-scheme:light dark;--bg:#f6f5f2;--fg:#1d1d1b;--muted:#6b6a66;--card:#fff;--line:#e4e2dc;--accent:#1f6f5c;--done:#e7e5df;--miss:#f6dcd6;--book:#d9ece6}
+@media (prefers-color-scheme:dark){:root{--bg:#161615;--fg:#eeede9;--muted:#a3a29c;--card:#22221f;--line:#34332f;--accent:#5fc4a8;--done:#2c2c29;--miss:#4a2a25;--book:#1f3a33}}
+body{margin:0;font:16px/1.45 system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--fg)}
+main{max-width:1200px;margin:0 auto;padding:16px 16px 48px}h1{margin:0;font-size:24px}
+.top{display:flex;gap:16px;align-items:center;padding:12px 16px;border-bottom:1px solid var(--line);background:var(--card)}.top b{margin-right:auto}
+.top a{color:var(--fg);text-decoration:none;padding:6px 10px;border-radius:8px}.top a.on{background:var(--book)}
+.sub{color:var(--muted)}a{color:var(--accent)}
+.calhead{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;margin:8px 0}
+.nav{display:flex;flex-wrap:wrap;gap:8px;align-items:center}.btn{border:1px solid var(--line);background:var(--card);border-radius:8px;padding:6px 10px;color:var(--fg);text-decoration:none}
+.nav input{font:inherit;padding:5px 8px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--fg)}
+.cal{display:grid;grid-template-columns:60px repeat(var(--cols),minmax(150px,1fr));overflow-x:auto;background:var(--card);border:1px solid var(--line);border-radius:12px;padding-bottom:8px}
+.times{position:relative;margin-top:41px}.times span{position:absolute;right:8px;transform:translateY(-50%);font-size:12px;color:var(--muted)}
+.col{border-left:1px solid var(--line)}.colhead{position:sticky;top:0;padding:10px;font-weight:600;border-bottom:1px solid var(--line);height:20px;background:var(--card)}
+.lane{position:relative}.lane i{position:absolute;left:0;right:0;border-top:1px solid var(--line)}
+.appt{position:absolute;left:4px;right:4px;border-radius:8px;padding:4px 8px;font-size:13px;line-height:1.3;overflow:hidden;color:var(--fg);text-decoration:none;background:var(--book);border-left:4px solid var(--accent)}
+.appt span{display:block;color:var(--muted)}.appt.s-completed{background:var(--done);border-left-color:var(--muted)}.appt.s-no_show,.appt.s-cancelled{background:var(--miss);border-left-color:#c0533f}
+.appt:hover{outline:2px solid var(--accent)}
+</style></head><body><nav class="top"><b>MICROSPACE</b><a href="/" class="${title === "Numbers" ? "on" : ""}">Numbers</a><a href="/calendar" class="${title === "Calendar" ? "on" : ""}">Calendar</a><a href="${esc(CRM)}" target="_blank" rel="noopener">Open the app</a></nav><main>${body}</main></body></html>`;
+}
+
 http.createServer(async (req, res) => {
-  if (req.url !== "/" && req.url !== "/index.html") { res.writeHead(404).end("Not found"); return; }
+  const url = new URL(req.url, "http://localhost");
+  if (!["/", "/index.html", "/calendar"].includes(url.pathname)) { res.writeHead(404).end("Not found"); return; }
   try {
-    const html = page(await numbers());
+    const date = url.searchParams.get("date");
+    const html = url.pathname === "/calendar"
+      ? await calendarPage(/^\d{4}-\d{2}-\d{2}$/.test(date ?? "") ? date : todayYmd())
+      : page(await numbers());
     res.writeHead(200, { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" }).end(html);
   } catch (e) {
     res.writeHead(502, { "Content-Type": "text/plain; charset=utf-8" }).end(`Couldn't read the CRM. Is Docker running? (${e.message})`);

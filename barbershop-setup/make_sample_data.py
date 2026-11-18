@@ -61,7 +61,7 @@ for c in clients:
         t = t + dt.timedelta(days=gap)
         if t > now + dt.timedelta(days=14):
             break
-        visits.append(t.replace(hour=random.randint(9, 18)))
+        visits.append(t.replace(hour=random.randint(15, 23))  # 9 AM-5 PM in Chicago)
     lost = random.random() < 0.2  # some clients drift away: their last visits stop early
     if lost and len(visits) > 1:
         visits = visits[:-1] if visits[-1] > now else visits[:-2] or visits[:1]
