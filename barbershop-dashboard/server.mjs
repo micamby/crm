@@ -189,7 +189,8 @@ ${unassigned.length ? `<p class="sub">${unassigned.length} appointment(s) have n
 <dialog id="book"><form method="post" action="/book">
   <h2>Book an appointment</h2>
   <p id="bookwhen" class="sub"></p>
-  <input type="hidden" name="date" value="${esc(ymd)}"><input type="hidden" name="barber" id="f-barber">
+  <input type="hidden" name="date" value="${esc(ymd)}">
+  <label>Barber <select name="barber" id="f-barber" required>${cols.map((b) => `<option value="${esc(b.id)}">${esc(b.name)}</option>`).join("")}</select></label>
   <label>Time <input type="time" name="time" id="f-time" step="900" required></label>
   <label>Client
     <select name="client" id="f-client">
@@ -203,7 +204,7 @@ ${unassigned.length ? `<p class="sub">${unassigned.length} appointment(s) have n
     <label>Mobile phone <input name="phone" type="tel" placeholder="e.g. 312 555 0123"></label>
   </div>
   <label>Service <select name="service" required>${Object.entries(SERVICE).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join("")}</select></label>
-  <label>Chair <select name="chair" id="f-chair">${[1, 2, 3, 4, 5].map((n) => `<option value="chair_${n}">Chair ${n}</option>`).join("")}</select></label>
+
   <label>Booked <select name="booked_via"><option value="in_shop">In the shop</option><option value="square">Square online</option></select></label>
   <div class="actions"><button type="button" class="btn" onclick="document.getElementById('book').close()">Cancel</button><button class="btn primary">Book it</button></div>
 </form></dialog>
@@ -217,8 +218,7 @@ document.querySelectorAll(".lane").forEach(l=>l.addEventListener("click",(e)=>{
   const y=e.clientY-l.getBoundingClientRect().top, m=Math.round((OPEN*60+y/PX)/15)*15;
   const hh=String(Math.floor(m/60)).padStart(2,"0"), mm=String(m%60).padStart(2,"0");
   document.getElementById("f-time").value=hh+":"+mm; document.getElementById("f-barber").value=l.dataset.barber;
-  if(l.dataset.chair)document.getElementById("f-chair").value=l.dataset.chair;
-  document.getElementById("bookwhen").textContent="With "+l.dataset.name+" on ${esc(label)}";
+  document.getElementById("bookwhen").textContent="${esc(label)}";
   sel.value=""; nc.hidden=true; dlg.showModal();
 }));
 </script>`);
@@ -263,7 +263,7 @@ async function book(f) {
   const when = new Date(start.getTime() + (h * 60 + m) * 60000);
   await crmWrite("POST", "/v1/objects/appointment/records", {
     client, barber: barber.id, starts_at: when.toISOString(), service: f.service,
-    ...(/^chair_[1-9]$/.test(f.chair ?? "") ? { chair: f.chair } : {}), booked_via: f.booked_via === "square" ? "square" : "in_shop",
+    ...(barber.home_chair ? { chair: barber.home_chair } : {}), booked_via: f.booked_via === "square" ? "square" : "in_shop",
   });
   return when.toLocaleTimeString("en-US", { timeZone: TZ, hour: "numeric", minute: "2-digit" });
 }
