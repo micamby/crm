@@ -24,7 +24,7 @@ for b in barbers:
         ("contact", f"{first}'s call-back list", {"and": [{"field": "owner", "op": "eq", "value": u["id"]}, {"field": "overdue", "op": "eq", "value": True}]},
          [{"field": "next_visit_due"}], ["first_name", "last_name", "phone", "next_visit_due", "reminder_text"]),
         ("appointment", f"{first}'s upcoming appointments", {"and": [{"field": "barber", "op": "eq", "value": b["id"]}, {"field": "status", "op": "eq", "value": "booked"}]},
-         [{"field": "starts_at"}], ["starts_at", "client", "service", "chair"]),
+         [{"field": "starts_at"}], ["starts_at", "client", "service_type", "length_minutes"]),
     ]
     for obj, name, where, sort, cols in lists:
         if name in have:

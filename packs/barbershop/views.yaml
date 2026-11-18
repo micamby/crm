@@ -13,14 +13,19 @@ views:
     object: appointment
     where: { field: status, op: eq, value: booked }
     sort: [{ field: starts_at }]
-    columns: [starts_at, client, barber, chair, service, booked_via]
+    columns: [starts_at, client, barber, service_type, booked_via]
   - name: No-shows
     object: appointment
     where: { field: status, op: eq, value: no_show }
     sort: [{ field: starts_at, dir: desc }]
-    columns: [starts_at, client, barber, service]
+    columns: [starts_at, client, barber, service_type]
   - name: Completed visits
     object: appointment
     where: { field: status, op: eq, value: completed }
     sort: [{ field: starts_at, dir: desc }]
-    columns: [starts_at, client, barber, service, rebooked]
+    columns: [starts_at, client, barber, service_type, rebooked]
+  - name: Services we offer
+    object: service
+    where: { field: active, op: eq, value: true }
+    sort: [{ field: name }]
+    columns: [name, length_minutes, price]

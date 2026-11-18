@@ -153,6 +153,9 @@ async function calendarPage(ymd, notice = "") {
     queryAll("barber"),
     queryAll("contact"),
   ]);
+  const services = await queryAll("service");
+  const svcName = new Map(services.map((x) => [x.id, x.name]));
+  const active = services.filter((x) => x.active !== false).sort((a, b) => a.name.localeCompare(b.name));
   clients.sort((a, b) => `${a.first_name} ${a.last_name}`.localeCompare(`${b.first_name} ${b.last_name}`));
   const cols = barbers.filter((b) => b.active !== false).sort((a, b) => String(a.home_chair ?? "").localeCompare(String(b.home_chair ?? "")) || a.name.localeCompare(b.name));
   const height = (CLOSE_HOUR - OPEN_HOUR) * 60 * PX_PER_MIN;
@@ -163,8 +166,10 @@ async function calendarPage(ymd, notice = "") {
     const top = Math.max(0, (minutesIntoDay(a.starts_at) - OPEN_HOUR * 60) * PX_PER_MIN);
     const time = new Date(a.starts_at).toLocaleTimeString("en-US", { timeZone: TZ, hour: "numeric", minute: "2-digit" });
     const who = String(a.summary ?? "Appointment").split(" - ")[0];
-    return `<a class="appt s-${esc(a.status)}" style="top:${top}px;height:${SLOT_MIN * PX_PER_MIN - 4}px" href="${esc(CRM)}/o/appointment/${esc(a.id)}" target="_blank" rel="noopener">
-      <b>${esc(time)} ${esc(who)}</b><span>${esc(SERVICE[a.service] ?? "")}${a.status !== "booked" ? " · " + esc({ completed: "Done", no_show: "No-show", cancelled: "Cancelled" }[a.status] ?? a.status) : ""}${a.booked_via === "square" ? " · Square" : ""}</span></a>`;
+    const len = Number(a.length_minutes) || SLOT_MIN;
+    const end = new Date(new Date(a.starts_at).getTime() + len * 60000).toLocaleTimeString("en-US", { timeZone: TZ, hour: "numeric", minute: "2-digit" });
+    return `<a class="appt s-${esc(a.status)}" title="${esc(time)} - ${esc(end)}" style="top:${top}px;height:${Math.max(18, len * PX_PER_MIN - 3)}px" href="${esc(CRM)}/o/appointment/${esc(a.id)}" target="_blank" rel="noopener">
+      <b>${esc(time)} ${esc(who)}</b><span>${esc(svcName.get(a.service_type) ?? SERVICE[a.service] ?? "")} · ${len} min${a.status !== "booked" ? " · " + esc({ completed: "Done", no_show: "No-show", cancelled: "Cancelled" }[a.status] ?? a.status) : ""}${a.booked_via === "square" ? " · Square" : ""}</span></a>`;
   };
   const unassigned = appts.filter((a) => !cols.some((b) => b.id === a.barber));
   return shell("Calendar", `
@@ -206,7 +211,9 @@ ${unassigned.length ? `<p class="sub">${unassigned.length} appointment(s) have n
     <label>Last name <input name="last_name"></label>
     <label>Mobile phone <input name="phone" type="tel" placeholder="e.g. 312 555 0123"></label>
   </div>
-  <label>Service <select name="service" required>${Object.entries(SERVICE).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join("")}</select></label>
+  <label>Service <select name="service" required>${active.map((x) => `<option value="${esc(x.id)}">${esc(x.name)} (${esc(x.length_minutes)} min)</option>`).join("")}</select></label>
+  ${active.length ? "" : `<p class="notice">No services yet: add them under <a href="${esc(CRM)}/o/service" target="_blank" rel="noopener">Services</a> in the app.</p>`}
+  <label class="inline"><input type="checkbox" name="anyway" value="1"> Book even if it overlaps another appointment</label>
 
   <label>Booked <select name="booked_via"><option value="in_shop">In the shop</option><option value="square">Square online</option></select></label>
   <div class="actions"><button type="button" class="btn" onclick="document.getElementById('book').close()">Cancel</button><button class="btn primary">Book it</button></div>
@@ -243,29 +250,46 @@ async function crmWrite(method, path, body) {
   return out.data;
 }
 
+async function newClient(f, barber) {
+  const first = String(f.first_name ?? "").trim(), last = String(f.last_name ?? "").trim();
+  if (!first) throw new Error("Type the new client's first name");
+  const owner = barber.member_email ? (await (await fetch(`${CRM}/v1/users`, { headers: { Authorization: `Bearer ${KEY}` } })).json()).data?.find((u) => u.email === barber.member_email)?.id : undefined;
+  const phone = String(f.phone ?? "").replace(/[^\d+]/g, "");
+  const made = await crmWrite("POST", "/v1/objects/contact/records", {
+    first_name: first, ...(last ? { last_name: last } : {}), ...(phone ? { phone: phone.startsWith("+") ? phone : phone.length === 10 ? "+1" + phone : phone } : {}),
+    ...(owner ? { owner } : {}), return_every: "w4",
+  });
+  return made.id;
+}
+
 async function book(f) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(f.date ?? "") || !/^\d{2}:\d{2}$/.test(f.time ?? "")) throw new Error("Pick a day and a time");
   if (!/^barb_\w+$/.test(f.barber ?? "")) throw new Error("Pick a barber's column");
-  if (!SERVICE[f.service]) throw new Error("Pick a service");
+  if (!/^serv_\w+$/.test(f.service ?? "")) throw new Error("Pick a service");
+  const service = (await queryAll("service", { field: "id", op: "eq", value: f.service }))[0];
+  if (!service) throw new Error("That service wasn't found");
+  const len = Number(service.length_minutes) || SLOT_MIN;
   const barber = (await queryAll("barber", { field: "id", op: "eq", value: f.barber }))[0];
   if (!barber) throw new Error("That barber wasn't found");
-  let client = f.client;
-  if (client === "new") {
-    const first = String(f.first_name ?? "").trim(), last = String(f.last_name ?? "").trim();
-    if (!first) throw new Error("Type the new client's first name");
-    const owner = barber.member_email ? (await (await fetch(`${CRM}/v1/users`, { headers: { Authorization: `Bearer ${KEY}` } })).json()).data?.find((u) => u.email === barber.member_email)?.id : undefined;
-    const phone = String(f.phone ?? "").replace(/[^\d+]/g, "");
-    const made = await crmWrite("POST", "/v1/objects/contact/records", {
-      first_name: first, ...(last ? { last_name: last } : {}), ...(phone ? { phone: phone.startsWith("+") ? phone : phone.length === 10 ? "+1" + phone : phone } : {}),
-      ...(owner ? { owner } : {}), return_every: "w4",
-    });
-    client = made.id;
-  } else if (!/^con_\w+$/.test(client ?? "")) throw new Error("Choose a client");
+  const client0 = f.client;
+  if (client0 !== "new" && !/^con_\w+$/.test(client0 ?? "")) throw new Error("Choose a client");
+  let client = client0;
   const { start } = dayBounds(f.date);
   const [h, m] = f.time.split(":").map(Number);
   const when = new Date(start.getTime() + (h * 60 + m) * 60000);
+  const finish = new Date(when.getTime() + len * 60000);
+  if (f.anyway !== "1") {
+    const sameDay = await queryAll("appointment", { and: [{ field: "barber", op: "eq", value: barber.id }, { field: "status", op: "in", value: ["booked", "completed"] },
+      { field: "starts_at", op: "gte", value: new Date(start.getTime() - 8 * 3600000).toISOString() }, { field: "starts_at", op: "lt", value: finish.toISOString() }] });
+    const clash = sameDay.find((a) => new Date(a.starts_at).getTime() + (Number(a.length_minutes) || SLOT_MIN) * 60000 > when.getTime());
+    if (clash) {
+      const t = new Date(clash.starts_at).toLocaleTimeString("en-US", { timeZone: TZ, hour: "numeric", minute: "2-digit" });
+      throw new Error(`${barber.name} already has ${String(clash.summary ?? "an appointment")} at ${t}. Pick another time, or tick "Book even if it overlaps".`);
+    }
+  }
+  if (client === "new") client = await newClient(f, barber);
   await crmWrite("POST", "/v1/objects/appointment/records", {
-    client, barber: barber.id, starts_at: when.toISOString(), service: f.service,
+    client, barber: barber.id, starts_at: when.toISOString(), service_type: service.id, length_minutes: len,
     ...(barber.home_chair ? { chair: barber.home_chair } : {}), booked_via: f.booked_via === "square" ? "square" : "in_shop",
   });
   return when.toLocaleTimeString("en-US", { timeZone: TZ, hour: "numeric", minute: "2-digit" });
@@ -294,7 +318,7 @@ main{max-width:1200px;margin:0 auto;padding:16px 16px 48px}h1{margin:0;font-size
 .notice{background:var(--book);border-radius:8px;padding:10px 14px}
 dialog{border:1px solid var(--line);border-radius:14px;background:var(--card);color:var(--fg);padding:20px;width:min(420px,92vw)}dialog::backdrop{background:#0006}
 dialog h2{margin:0 0 4px}dialog label{display:block;margin:10px 0}dialog input,dialog select{display:block;width:100%;box-sizing:border-box;font:inherit;padding:8px;margin-top:4px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--fg)}
-.actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}.btn.primary{background:var(--accent);color:#fff;border-color:var(--accent);font:inherit;cursor:pointer}button.btn{font:inherit;cursor:pointer}
+dialog label.inline{display:flex;gap:8px;align-items:center}dialog label.inline input{display:inline;width:auto;margin:0}.actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}.btn.primary{background:var(--accent);color:#fff;border-color:var(--accent);font:inherit;cursor:pointer}button.btn{font:inherit;cursor:pointer}
 </style></head><body><nav class="top"><b>MICROSPACE</b><a href="/" class="${title === "Numbers" ? "on" : ""}">Numbers</a><a href="/calendar" class="${title === "Calendar" ? "on" : ""}">Calendar</a><a href="${esc(CRM)}" target="_blank" rel="noopener">Open the app</a></nav><main>${body}</main></body></html>`;
 }
 

@@ -20,6 +20,17 @@ objects:
           - { key: chair_4, label: Chair 4 }
           - { key: chair_5, label: Chair 5 }
       - { name: active, type: boolean, default: true }
+  - name: service
+    label: Service
+    plural_label: Services
+    id_prefix: serv
+    display_field: name
+    description: What the shop offers, and how long each one takes. Set up once; booking uses the length.
+    fields:
+      - { name: name, type: text, required: true, unique: true }
+      - { name: length_minutes, label: Length (minutes), type: number, required: true, validation: { min: 5, max: 480 } }
+      - { name: price, type: currency }
+      - { name: active, type: boolean, default: true }
   - name: appointment
     label: Appointment
     plural_label: Appointments
@@ -32,7 +43,11 @@ objects:
       - { name: client, type: relation, relation: { to: contact, cardinality: many_to_one }, required: true }
       - { name: barber, type: relation, relation: { to: barber, cardinality: many_to_one }, required: true }
       - { name: starts_at, label: Date and time, type: datetime, required: true }
+      - { name: service_type, label: Service, type: relation, relation: { to: service, cardinality: many_to_one } }
+      - { name: length_minutes, label: Length (minutes), type: number, validation: { min: 5, max: 480 } }
       - name: service
+        label: Service (old list)
+        hidden: true
         type: single_select
         values:
           - { key: haircut, label: Haircut }
