@@ -89,6 +89,7 @@ objects:
         type: single_select
         values: [{ key: in_shop, label: In the shop }, { key: square, label: Square online }]
         default: in_shop
+      - { name: checked_in_at, label: Checked in, type: datetime, description: "When the client arrived at the shop" }
       - { name: visit_notes, label: What we chatted about, type: long_text }
       - { name: rebooked, type: boolean, default: false, description: "Next cut booked before leaving or within 3 days after this visit" }
   - name: contact

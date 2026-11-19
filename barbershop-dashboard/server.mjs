@@ -170,9 +170,11 @@ async function calendarPage(ymd, notice = "") {
     const who = String(a.summary ?? "Appointment").split(" - ")[0];
     const len = Number(a.length_minutes) || SLOT_MIN;
     const end = new Date(new Date(a.starts_at).getTime() + len * 60000).toLocaleTimeString("en-US", { timeZone: TZ, hour: "numeric", minute: "2-digit" });
-    return `<a class="appt s-${esc(a.status)}" title="${esc(time)} - ${esc(end)}. Drag to move, or click for options." style="top:${top}px;height:${Math.max(18, len * PX_PER_MIN - 3)}px" href="${esc(CRM)}/o/appointment/${esc(a.id)}" target="_blank" rel="noopener"
-      draggable="${a.status === "booked" ? "true" : "false"}" data-id="${esc(a.id)}" data-barber="${esc(a.barber ?? "")}" data-time="${esc(new Date(a.starts_at).toLocaleTimeString("en-GB", { timeZone: TZ, hour: "2-digit", minute: "2-digit" }))}" data-who="${esc(who)}" data-status="${esc(a.status)}">
-      <b>${esc(time)} ${esc(who)}</b><span>${esc(svcName.get(a.service_type) ?? SERVICE[a.service] ?? "")} · ${len} min${a.status !== "booked" ? " · " + esc({ completed: "Done", no_show: "No-show", cancelled: "Cancelled" }[a.status] ?? a.status) : ""}${a.booked_via === "square" ? " · Square" : ""}</span></a>`;
+    const here = a.status === "booked" && a.checked_in_at
+      ? new Date(a.checked_in_at).toLocaleTimeString("en-US", { timeZone: TZ, hour: "numeric", minute: "2-digit" }) : "";
+    return `<a class="appt s-${esc(a.status)}${here ? " here" : ""}" title="${esc(time)} - ${esc(end)}. Drag to move, or click for options." style="top:${top}px;height:${Math.max(18, len * PX_PER_MIN - 3)}px" href="${esc(CRM)}/o/appointment/${esc(a.id)}" target="_blank" rel="noopener"
+      draggable="${a.status === "booked" ? "true" : "false"}" data-id="${esc(a.id)}" data-barber="${esc(a.barber ?? "")}" data-time="${esc(new Date(a.starts_at).toLocaleTimeString("en-GB", { timeZone: TZ, hour: "2-digit", minute: "2-digit" }))}" data-who="${esc(who)}" data-status="${esc(a.status)}" data-here="${a.checked_in_at ? "1" : ""}" data-notes="${esc(a.visit_notes ?? "")}">
+      <b>${here ? "✓ " : ""}${esc(time)} ${esc(who)}</b><span>${here ? `Here since ${esc(here)} · ` : ""}${esc(svcName.get(a.service_type) ?? SERVICE[a.service] ?? "")} · ${len} min${a.status !== "booked" ? " · " + esc({ completed: "Done", no_show: "No-show", cancelled: "Cancelled" }[a.status] ?? a.status) : ""}${a.booked_via === "square" ? " · Square" : ""}</span></a>`;
   };
   const unassigned = appts.filter((a) => !cols.some((b) => b.id === a.barber));
   return shell("Calendar", `
@@ -219,7 +221,16 @@ ${unassigned.length ? `<p class="sub">${unassigned.length} appointment(s) have n
   <div class="actions"><button type="button" class="btn" onclick="document.getElementById('book').close()">Cancel</button><button class="btn primary">Book it</button></div>
 </form></dialog>
 <dialog id="move"><form method="post" action="/move">
-  <h2 id="m-title">Move appointment</h2>
+  <h2 id="m-title">Appointment</h2>
+  <div class="quick" id="m-quick">
+    <button type="button" class="btn primary" data-act="checkin" id="q-in">Check in (they're here)</button>
+    <button type="button" class="btn" data-act="undo_checkin" id="q-undo">Undo check-in</button>
+    <label>What we chatted about <textarea id="q-notes" rows="2" placeholder="e.g. New job at the hospital"></textarea></label>
+    <button type="button" class="btn primary" data-act="done">Finished</button>
+    <button type="button" class="btn" data-act="no_show">No-show</button>
+    <button type="button" class="btn" data-act="cancelled">Cancelled</button>
+  </div>
+  <h3 class="movehead">Move it</h3>
   <input type="hidden" name="id" id="m-id"><input type="hidden" name="from" value="${esc(ymd)}">
   <label>Day <input type="date" name="date" id="m-date" value="${esc(ymd)}" required></label>
   <label>Time <select name="time" id="m-time" required>${timeOptions()}</select></label>
@@ -242,9 +253,16 @@ document.querySelectorAll(".appt").forEach(a=>{
     document.getElementById("m-id").value=a.dataset.id; document.getElementById("m-title").textContent=a.dataset.who;
     document.getElementById("m-time").value=a.dataset.time; document.getElementById("m-barber").value=a.dataset.barber;
     document.getElementById("m-open").href=a.href; const booked=a.dataset.status==="booked";
-    document.getElementById("m-save").hidden=!booked; mv.querySelectorAll("label").forEach(l=>l.hidden=!booked); mv.showModal();});
+    document.getElementById("m-save").hidden=!booked; mv.querySelectorAll("form > label, .movehead").forEach(l=>l.hidden=!booked);
+    document.getElementById("m-quick").hidden=!booked; document.getElementById("q-in").hidden=a.dataset.here==="1"; document.getElementById("q-undo").hidden=a.dataset.here!=="1";
+    document.getElementById("q-notes").value=a.dataset.notes||""; mv.showModal();});
   a.addEventListener("dragstart",(e)=>{e.dataTransfer.setData("text/plain",a.dataset.id);a._grab=e.clientY-a.getBoundingClientRect().top;window._drag=a;});
 });
+document.querySelectorAll("#m-quick button").forEach(b=>b.addEventListener("click",async()=>{
+  const body=new URLSearchParams({id:document.getElementById("m-id").value,act:b.dataset.act,notes:document.getElementById("q-notes").value});
+  const r=await fetch("/status",{method:"POST",headers:{"X-Calendar":"status"},body}); const j=await r.json();
+  if(j.ok)location.reload(); else alert(j.error);
+}));
 async function moveTo(id,barber,time,anyway){
   const body=new URLSearchParams({id,barber,time,date:"${esc(ymd)}",from:"${esc(ymd)}",...(anyway?{anyway:"1"}:{})});
   const r=await fetch("/move",{method:"POST",headers:{"X-Calendar":"drag"},body}); const j=await r.json();
@@ -305,6 +323,25 @@ async function move(f) {
   const client = (await queryAll("contact", { field: "id", op: "eq", value: appt.client }))[0];
   if (client && client.next_booked_at === appt.starts_at) await crmWrite("PATCH", `/v1/objects/contact/records/${client.id}`, { next_booked_at: when.toISOString() });
   return when.toLocaleString("en-US", { timeZone: TZ, weekday: "long", hour: "numeric", minute: "2-digit" });
+}
+
+async function setStatus(f) {
+  if (!/^appt_\w+$/.test(f.id ?? "")) throw new Error("Pick an appointment");
+  const appt = (await queryAll("appointment", { field: "id", op: "eq", value: f.id }))[0];
+  if (!appt) throw new Error("That appointment wasn't found");
+  if (appt.status !== "booked") throw new Error("This appointment is already marked as " + appt.status.replace("_", "-"));
+  const notes = String(f.notes ?? "").trim().slice(0, 5000);
+  const changes = {
+    checkin: { checked_in_at: new Date().toISOString() },
+    undo_checkin: { checked_in_at: null },
+    done: { status: "completed", ...(notes ? { visit_notes: notes } : {}) },
+    no_show: { status: "no_show" },
+    cancelled: { status: "cancelled" },
+  }[f.act];
+  if (!changes) throw new Error("Unknown action");
+  // Notes first, so the "visit completed" automation copies them to the client.
+  if (changes.visit_notes) { await crmWrite("PATCH", `/v1/objects/appointment/records/${appt.id}`, { visit_notes: changes.visit_notes }); delete changes.visit_notes; }
+  await crmWrite("PATCH", `/v1/objects/appointment/records/${appt.id}`, changes);
 }
 
 // Reads a form post (small bodies only).
@@ -381,7 +418,8 @@ main{max-width:1200px;margin:0 auto;padding:16px 16px 48px}h1{margin:0;font-size
 .lane{position:relative}.lane i{position:absolute;left:0;right:0;border-top:1px solid var(--line)}
 .appt{position:absolute;left:4px;right:4px;border-radius:8px;padding:4px 8px;font-size:13px;line-height:1.3;overflow:hidden;color:var(--fg);text-decoration:none;background:var(--book);border-left:4px solid var(--accent)}
 .appt span{display:block;color:var(--muted)}.appt.s-completed{background:var(--done);border-left-color:var(--muted)}.appt.s-no_show,.appt.s-cancelled{background:var(--miss);border-left-color:#c0533f}
-.appt:hover{outline:2px solid var(--accent)}.appt[draggable=true]{cursor:grab}.lane{cursor:copy}
+.appt:hover{outline:2px solid var(--accent)}.appt[draggable=true]{cursor:grab}.appt.here{background:#f7e7b4;border-left-color:#b8860b;color:#1d1d1b}.appt.here span{color:#5b4a14}
+.quick{display:grid;gap:8px;margin:12px 0}.quick textarea{display:block;width:100%;box-sizing:border-box;font:inherit;padding:8px;margin-top:4px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--fg)}.movehead{margin:16px 0 0;font-size:16px}.lane{cursor:copy}
 .notice{background:var(--book);border-radius:8px;padding:10px 14px}
 dialog{border:1px solid var(--line);border-radius:14px;background:var(--card);color:var(--fg);padding:20px;width:min(420px,92vw)}dialog::backdrop{background:#0006}
 dialog h2{margin:0 0 4px}dialog label{display:block;margin:10px 0}dialog input,dialog select{display:block;width:100%;box-sizing:border-box;font:inherit;padding:8px;margin-top:4px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--fg)}
@@ -403,6 +441,13 @@ http.createServer(async (req, res) => {
       const day = /^\d{4}-\d{2}-\d{2}$/.test(f.date ?? "") ? f.date : todayYmd();
       res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" }).end(await calendarPage(day, `Not booked: ${e.message}`));
     }
+    return;
+  }
+  if (req.method === "POST" && url.pathname === "/status") {
+    const origin = req.headers.origin ?? "";
+    if ((origin !== `http://localhost:${PORT}` && origin !== `http://127.0.0.1:${PORT}`) || req.headers["x-calendar"] !== "status") { res.writeHead(403).end("Only from this computer's calendar page."); return; }
+    try { await setStatus(await readForm(req)); res.writeHead(200, { "Content-Type": "application/json" }).end(JSON.stringify({ ok: true })); }
+    catch (e) { res.writeHead(200, { "Content-Type": "application/json" }).end(JSON.stringify({ ok: false, error: e.message })); }
     return;
   }
   if (req.method === "POST" && url.pathname === "/move") {
