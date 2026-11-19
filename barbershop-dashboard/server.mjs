@@ -76,7 +76,7 @@ async function numbers() {
     if (a.status === "no_show" && t >= since30) row.noshow30++;
   }
   // Retention and referrals, per barber, from each client's completed visits.
-  const RET_FROM = now.getTime() - 120 * DAY, RET_TO = now.getTime() - 21 * DAY, NEW_FROM = now.getTime() - 90 * DAY;
+  const RET_FROM = now.getTime() - 84 * DAY, RET_TO = now.getTime() - 21 * DAY, NEW_FROM = now.getTime() - 90 * DAY;
   const referred = new Set(clients.filter((c) => c.referred_by).map((c) => c.id));
   const visits = new Map(); // barber -> client -> sorted visit times (completed, or booked in the future)
   for (const a of appts) {
@@ -141,7 +141,7 @@ ${n.rows.map((r) => `<tr><td>${esc(r.name)}</td><td><b>${pct(r.rebooked30, r.don
 <td><b>${pct(r.retained, r.cohort) ?? "-"}${r.cohort ? "%" : ""}</b> <span class="n">${r.retained} of ${r.cohort}</span></td>
 <td><b>${pct(r.newReferred, r.newClients) ?? "-"}${r.newClients ? "%" : ""}</b> <span class="n">${r.newReferred} of ${r.newClients}</span></td><td>${r.done30}</td><td>${r.week}</td><td>${r.noshow30}</td></tr>`).join("")}
 </tbody></table></div>
-<p class="sub"><b>Rebook rate:</b> finished cuts where the next cut was booked before leaving or within 3 days. <b>Retention:</b> clients whose first cut with that barber was 3 to 17 weeks ago, and who came back to them (or are booked). <b>Referral rate:</b> the barber's new clients in the last 90 days who were referred by someone.</p>
+<p class="sub"><b>Rebook rate:</b> finished cuts where the next cut was booked before leaving or within 3 days. <b>Retention:</b> clients whose first cut with that barber was 3 to 12 weeks ago, and who came back to them (or are booked). <b>Referral rate:</b> the barber's new clients in the last 90 days who were referred by someone.</p>
 <h2>Busiest days (last 8 weeks)</h2>
 ${[...n.days].map(([d, c]) => `<div class="day"><span>${d}</span><div class="bar" style="width:${Math.round((100 * c) / busiest)}%"></div><span>${c}</span></div>`).join("")}
 <h2>Call-back list</h2>${n.overdue.length === 0 ? "<p>No one is overdue right now.</p>" : `<div class="tbl"><table><thead><tr><th>Client</th><th>Barber's due date</th><th>Phone</th></tr></thead><tbody>
