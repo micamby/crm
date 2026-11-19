@@ -1,0 +1,8 @@
+# Hides what a barbershop doesn't use: turns off the Sales module (Leads, Deals, board) and hides Accounts (companies).
+# To bring them back: set modules to [core, sales] and hidden: false, then crm schema apply -f this file.
+format: hl-crm-db/schema@1
+schema_version: 53
+modules: [core]
+objects:
+  - name: account
+    hidden: true
