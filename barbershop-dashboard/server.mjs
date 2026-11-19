@@ -249,7 +249,7 @@ async function moveTo(id,barber,time,anyway){
   const body=new URLSearchParams({id,barber,time,date:"${esc(ymd)}",from:"${esc(ymd)}",...(anyway?{anyway:"1"}:{})});
   const r=await fetch("/move",{method:"POST",headers:{"X-Calendar":"drag"},body}); const j=await r.json();
   if(j.ok)return location.reload();
-  if(j.clash&&confirm(j.error+"\n\nMove it there anyway?"))return moveTo(id,barber,time,true);
+  if(j.clash&&confirm(j.error+" Move it there anyway?"))return moveTo(id,barber,time,true);
   if(!j.clash)alert(j.error);
 }
 document.querySelectorAll(".lane").forEach(l=>{
