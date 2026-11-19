@@ -13,7 +13,7 @@ START = {
                       "Would you like me to save you a spot this week? Just reply with a day and time that works for you. Hope all is well!",
     "Missed appointment": "Hi {first_name}, it's {barber} from {shop}. We missed you at your appointment {when}. I hope everything is okay! "
                           "Whenever you're ready, just reply and we'll find a new time that suits you. {policy}",
-    "Cancellation policy": "As a friendly reminder, we ask for at least 24 hours' notice if you need to cancel or move an appointment. Thank you for understanding!",
+    "Cancellation policy": "As a friendly reminder, here is our appointment policy: (paste the shop's own policy here)",
 }
 have = {t["name"] for t in call("POST", "/v1/query", {"object": "message_template", "limit": 50})["data"]}
 for name, text in START.items():
