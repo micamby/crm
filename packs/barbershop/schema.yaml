@@ -117,6 +117,7 @@ objects:
           - { key: w10, label: 10 weeks }
           - { key: w12, label: 12 weeks }
       - { name: usual_cut, label: Usual cut, type: text }
+      - { name: referred_by, label: Referred by, type: relation, relation: { to: contact, cardinality: many_to_one }, description: "The client who sent them our way" }
       - { name: last_chat, label: Last time we chatted about, type: long_text }
       - { name: last_visit_at, label: Last visit, type: datetime }
       - { name: next_visit_due, label: Next visit due, type: date }
