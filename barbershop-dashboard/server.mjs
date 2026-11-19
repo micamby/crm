@@ -75,8 +75,34 @@ async function numbers() {
     }
     if (a.status === "no_show" && t >= since30) row.noshow30++;
   }
+  // Retention and referrals, per barber, from each client's completed visits.
+  const RET_FROM = now.getTime() - 120 * DAY, RET_TO = now.getTime() - 21 * DAY, NEW_FROM = now.getTime() - 90 * DAY;
+  const referred = new Set(clients.filter((c) => c.referred_by).map((c) => c.id));
+  const visits = new Map(); // barber -> client -> sorted visit times (completed, or booked in the future)
+  for (const a of appts) {
+    if (!a.barber || !a.client) continue;
+    const t = new Date(a.starts_at).getTime();
+    if (!(a.status === "completed" || (a.status === "booked" && t > now.getTime()))) continue;
+    const byClient = visits.get(a.barber) ?? visits.set(a.barber, new Map()).get(a.barber);
+    (byClient.get(a.client) ?? byClient.set(a.client, []).get(a.client)).push({ t, done: a.status === "completed" });
+  }
+  for (const [barberId, byClient] of visits) {
+    const row = per.get(barberId);
+    if (!row) continue;
+    Object.assign(row, { cohort: 0, retained: 0, newClients: 0, newReferred: 0 });
+    for (const [clientId, list] of byClient) {
+      list.sort((x, y) => x.t - y.t);
+      const first = list.find((v) => v.done);
+      if (!first) continue;
+      if (first.t >= RET_FROM && first.t <= RET_TO) { row.cohort++; if (list.some((v) => v.t > first.t)) row.retained++; }
+      if (first.t >= NEW_FROM) { row.newClients++; if (referred.has(clientId)) row.newReferred++; }
+    }
+  }
+  for (const r of per.values()) Object.assign(r, { cohort: r.cohort ?? 0, retained: r.retained ?? 0, newClients: r.newClients ?? 0, newReferred: r.newReferred ?? 0 });
   const rows = [...per.values()].sort((a, b) => (pct(b.rebooked30, b.done30) ?? -1) - (pct(a.rebooked30, a.done30) ?? -1));
-  const shop = rows.reduce((s, r) => ({ done30: s.done30 + r.done30, rebooked30: s.rebooked30 + r.rebooked30, week: s.week + r.week, noshow30: s.noshow30 + r.noshow30 }), { done30: 0, rebooked30: 0, week: 0, noshow30: 0 });
+  const shop = rows.reduce((s, r) => ({ done30: s.done30 + r.done30, rebooked30: s.rebooked30 + r.rebooked30, week: s.week + r.week, noshow30: s.noshow30 + r.noshow30,
+    cohort: s.cohort + r.cohort, retained: s.retained + r.retained, newClients: s.newClients + r.newClients, newReferred: s.newReferred + r.newReferred }),
+    { done30: 0, rebooked30: 0, week: 0, noshow30: 0, cohort: 0, retained: 0, newClients: 0, newReferred: 0 });
   const newClients = clients.filter((c) => new Date(c.created_at) >= monthStart).length;
   const overdue = clients.filter((c) => c.overdue).sort((a, b) => String(a.next_visit_due).localeCompare(String(b.next_visit_due)));
   const quiet = clients.filter((c) => c.last_visit_at && new Date(c.last_visit_at) < new Date(now.getTime() - 60 * DAY)).length;
@@ -102,15 +128,20 @@ a{color:var(--accent)}.top{display:flex;gap:16px;align-items:center;padding:12px
 <h1>MICROSPACE numbers</h1><p class="sub">Updated ${esc(n.updated.toLocaleString("en-US", { timeZone: TZ, dateStyle: "medium", timeStyle: "short" }))}. Refresh the page for the latest.</p>
 <div class="cards">
 ${card("Shop rebook rate (30 days)", shopRate === null ? "-" : shopRate + "%", REBOOK_WINDOW_NOTE)}
+${card("Retention", pct(n.shop.retained, n.shop.cohort) === null ? "-" : pct(n.shop.retained, n.shop.cohort) + "%", "new clients who came back")}
+${card("New clients by referral", pct(n.shop.newReferred, n.shop.newClients) === null ? "-" : pct(n.shop.newReferred, n.shop.newClients) + "%", n.shop.newReferred + " of " + n.shop.newClients + " in 90 days")}
 ${card("Cuts this week", n.shop.week)}
 ${card("New clients this month", n.newClients)}
 ${card("Overdue, nothing booked", n.overdue.length, "on the call-back list")}
 ${card("Not seen in 60+ days", n.quiet)}
 ${card("No-shows (30 days)", n.shop.noshow30)}
 </div>
-<h2>By barber</h2><div class="tbl"><table><thead><tr><th>Barber</th><th>Rebook rate (30 days)</th><th>Rebooked</th><th>Cuts (30 days)</th><th>Cuts this week</th><th>No-shows</th></tr></thead><tbody>
-${n.rows.map((r) => `<tr><td>${esc(r.name)}</td><td><b>${pct(r.rebooked30, r.done30) ?? "-"}${r.done30 ? "%" : ""}</b></td><td>${r.rebooked30} of ${r.done30}</td><td>${r.done30}</td><td>${r.week}</td><td>${r.noshow30}</td></tr>`).join("")}
+<h2>By barber</h2><div class="tbl"><table><thead><tr><th>Barber</th><th>Rebook rate (30 days)</th><th>Retention</th><th>Referral rate</th><th>Cuts (30 days)</th><th>Cuts this week</th><th>No-shows</th></tr></thead><tbody>
+${n.rows.map((r) => `<tr><td>${esc(r.name)}</td><td><b>${pct(r.rebooked30, r.done30) ?? "-"}${r.done30 ? "%" : ""}</b> <span class="n">${r.rebooked30} of ${r.done30}</span></td>
+<td><b>${pct(r.retained, r.cohort) ?? "-"}${r.cohort ? "%" : ""}</b> <span class="n">${r.retained} of ${r.cohort}</span></td>
+<td><b>${pct(r.newReferred, r.newClients) ?? "-"}${r.newClients ? "%" : ""}</b> <span class="n">${r.newReferred} of ${r.newClients}</span></td><td>${r.done30}</td><td>${r.week}</td><td>${r.noshow30}</td></tr>`).join("")}
 </tbody></table></div>
+<p class="sub"><b>Rebook rate:</b> finished cuts where the next cut was booked before leaving or within 3 days. <b>Retention:</b> clients whose first cut with that barber was 3 to 17 weeks ago, and who came back to them (or are booked). <b>Referral rate:</b> the barber's new clients in the last 90 days who were referred by someone.</p>
 <h2>Busiest days (last 8 weeks)</h2>
 ${[...n.days].map(([d, c]) => `<div class="day"><span>${d}</span><div class="bar" style="width:${Math.round((100 * c) / busiest)}%"></div><span>${c}</span></div>`).join("")}
 <h2>Call-back list</h2>${n.overdue.length === 0 ? "<p>No one is overdue right now.</p>" : `<div class="tbl"><table><thead><tr><th>Client</th><th>Barber's due date</th><th>Phone</th></tr></thead><tbody>
