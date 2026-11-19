@@ -170,7 +170,8 @@ async function calendarPage(ymd, notice = "") {
     const who = String(a.summary ?? "Appointment").split(" - ")[0];
     const len = Number(a.length_minutes) || SLOT_MIN;
     const end = new Date(new Date(a.starts_at).getTime() + len * 60000).toLocaleTimeString("en-US", { timeZone: TZ, hour: "numeric", minute: "2-digit" });
-    return `<a class="appt s-${esc(a.status)}" title="${esc(time)} - ${esc(end)}" style="top:${top}px;height:${Math.max(18, len * PX_PER_MIN - 3)}px" href="${esc(CRM)}/o/appointment/${esc(a.id)}" target="_blank" rel="noopener">
+    return `<a class="appt s-${esc(a.status)}" title="${esc(time)} - ${esc(end)}. Drag to move, or click for options." style="top:${top}px;height:${Math.max(18, len * PX_PER_MIN - 3)}px" href="${esc(CRM)}/o/appointment/${esc(a.id)}" target="_blank" rel="noopener"
+      draggable="${a.status === "booked" ? "true" : "false"}" data-id="${esc(a.id)}" data-barber="${esc(a.barber ?? "")}" data-time="${esc(new Date(a.starts_at).toLocaleTimeString("en-GB", { timeZone: TZ, hour: "2-digit", minute: "2-digit" }))}" data-who="${esc(who)}" data-status="${esc(a.status)}">
       <b>${esc(time)} ${esc(who)}</b><span>${esc(svcName.get(a.service_type) ?? SERVICE[a.service] ?? "")} · ${len} min${a.status !== "booked" ? " · " + esc({ completed: "Done", no_show: "No-show", cancelled: "Cancelled" }[a.status] ?? a.status) : ""}${a.booked_via === "square" ? " · Square" : ""}</span></a>`;
   };
   const unassigned = appts.filter((a) => !cols.some((b) => b.id === a.barber));
@@ -185,7 +186,7 @@ async function calendarPage(ymd, notice = "") {
   </form>
 </div>
 ${notice ? `<p class="notice">${esc(notice)}</p>` : ""}
-<p class="sub">${appts.length} appointment${appts.length === 1 ? "" : "s"}. <b>Click an empty time</b> in a barber's column to book. Click an appointment to open it in the app.</p>
+<p class="sub">${appts.length} appointment${appts.length === 1 ? "" : "s"}. <b>Click an empty time</b> to book. <b>Drag</b> a booked appointment to move it, or <b>click</b> it to move it to another day or open it in the app.</p>
 <div class="cal" style="--cols:${cols.length}">
   <div class="times" style="height:${height}px">${hours.map((h) => `<span style="top:${(h - OPEN_HOUR) * 60 * PX_PER_MIN}px">${hourLabel(h)}</span>`).join("")}</div>
   ${cols.map((b) => `<div class="col"><div class="colhead">${esc(b.name)}</div><div class="lane" data-barber="${esc(b.id)}" data-name="${esc(b.name)}" data-chair="${esc(b.home_chair ?? "")}" style="height:${height}px">
@@ -198,10 +199,7 @@ ${unassigned.length ? `<p class="sub">${unassigned.length} appointment(s) have n
   <p id="bookwhen" class="sub"></p>
   <input type="hidden" name="date" value="${esc(ymd)}">
   <label>Barber <select name="barber" id="f-barber" required>${cols.map((b) => `<option value="${esc(b.id)}">${esc(b.name)}</option>`).join("")}</select></label>
-  <label>Time <select name="time" id="f-time" required>${Array.from({ length: (CLOSE_HOUR - OPEN_HOUR) * 4 }, (_, i) => OPEN_HOUR * 60 + i * 15).map((m) => {
-    const h = Math.floor(m / 60), mm = String(m % 60).padStart(2, "0");
-    return `<option value="${String(h).padStart(2, "0")}:${mm}">${((h + 11) % 12) + 1}:${mm} ${h < 12 ? "AM" : "PM"}</option>`;
-  }).join("")}</select></label>
+  <label>Time <select name="time" id="f-time" required>${timeOptions()}</select></label>
   <label>Client
     <select name="client" id="f-client">
       <option value="">Choose a client...</option>
@@ -220,6 +218,16 @@ ${unassigned.length ? `<p class="sub">${unassigned.length} appointment(s) have n
   <label>Booked <select name="booked_via"><option value="in_shop">In the shop</option><option value="square">Square online</option></select></label>
   <div class="actions"><button type="button" class="btn" onclick="document.getElementById('book').close()">Cancel</button><button class="btn primary">Book it</button></div>
 </form></dialog>
+<dialog id="move"><form method="post" action="/move">
+  <h2 id="m-title">Move appointment</h2>
+  <input type="hidden" name="id" id="m-id"><input type="hidden" name="from" value="${esc(ymd)}">
+  <label>Day <input type="date" name="date" id="m-date" value="${esc(ymd)}" required></label>
+  <label>Time <select name="time" id="m-time" required>${timeOptions()}</select></label>
+  <label>Barber <select name="barber" id="m-barber" required>${cols.map((b) => `<option value="${esc(b.id)}">${esc(b.name)}</option>`).join("")}</select></label>
+  <label class="inline"><input type="checkbox" name="anyway" value="1"> Move even if it overlaps another appointment</label>
+  <p><a id="m-open" href="#" target="_blank" rel="noopener">Open in the app</a> (to mark it done, a no-show or cancelled)</p>
+  <div class="actions"><button type="button" class="btn" onclick="document.getElementById('move').close()">Close</button><button class="btn primary" id="m-save">Move it</button></div>
+</form></dialog>
 <script>
 const PX=${PX_PER_MIN}, OPEN=${OPEN_HOUR}, OWN=${JSON.stringify(ownTimes).replace(/</g, "\\u003c")};
 const bsel=document.getElementById("f-barber");
@@ -228,6 +236,28 @@ bsel.addEventListener("change",lengths);
 const dlg=document.getElementById("book"), sel=document.getElementById("f-client"), nc=document.getElementById("newclient");
 sel.addEventListener("change",()=>{nc.hidden=sel.value!=="new";nc.querySelectorAll("input").forEach(i=>i.required=sel.value==="new"&&i.name!=="phone");});
 dlg.querySelector("form").addEventListener("submit",(e)=>{if(!sel.value){e.preventDefault();alert("Choose a client, or pick + New client.");}});
+const mv=document.getElementById("move");
+document.querySelectorAll(".appt").forEach(a=>{
+  a.addEventListener("click",(e)=>{e.preventDefault();
+    document.getElementById("m-id").value=a.dataset.id; document.getElementById("m-title").textContent=a.dataset.who;
+    document.getElementById("m-time").value=a.dataset.time; document.getElementById("m-barber").value=a.dataset.barber;
+    document.getElementById("m-open").href=a.href; const booked=a.dataset.status==="booked";
+    document.getElementById("m-save").hidden=!booked; mv.querySelectorAll("label").forEach(l=>l.hidden=!booked); mv.showModal();});
+  a.addEventListener("dragstart",(e)=>{e.dataTransfer.setData("text/plain",a.dataset.id);a._grab=e.clientY-a.getBoundingClientRect().top;window._drag=a;});
+});
+async function moveTo(id,barber,time,anyway){
+  const body=new URLSearchParams({id,barber,time,date:"${esc(ymd)}",from:"${esc(ymd)}",...(anyway?{anyway:"1"}:{})});
+  const r=await fetch("/move",{method:"POST",headers:{"X-Calendar":"drag"},body}); const j=await r.json();
+  if(j.ok)return location.reload();
+  if(j.clash&&confirm(j.error+"\n\nMove it there anyway?"))return moveTo(id,barber,time,true);
+  if(!j.clash)alert(j.error);
+}
+document.querySelectorAll(".lane").forEach(l=>{
+  l.addEventListener("dragover",(e)=>e.preventDefault());
+  l.addEventListener("drop",(e)=>{e.preventDefault();const a=window._drag;if(!a)return;
+    const y=e.clientY-l.getBoundingClientRect().top-(a._grab||0), m=Math.min(${CLOSE_HOUR * 60 - 15},Math.max(OPEN*60,Math.round((OPEN*60+y/PX)/15)*15));
+    moveTo(a.dataset.id,l.dataset.barber,String(Math.floor(m/60)).padStart(2,"0")+":"+String(m%60).padStart(2,"0"),false);});
+});
 document.querySelectorAll(".lane").forEach(l=>l.addEventListener("click",(e)=>{
   if(e.target.closest(".appt"))return;
   const y=e.clientY-l.getBoundingClientRect().top, m=Math.min(${CLOSE_HOUR * 60 - 15},Math.max(OPEN*60,Math.floor((OPEN*60+y/PX)/15)*15));
@@ -237,6 +267,44 @@ document.querySelectorAll(".lane").forEach(l=>l.addEventListener("click",(e)=>{
   sel.value=""; nc.hidden=true; lengths(); dlg.showModal();
 }));
 </script>`);
+}
+
+function timeOptions() {
+  return Array.from({ length: (CLOSE_HOUR - OPEN_HOUR) * 4 }, (_, i) => OPEN_HOUR * 60 + i * 15).map((m) => {
+    const h = Math.floor(m / 60), mm = String(m % 60).padStart(2, "0");
+    return `<option value="${String(h).padStart(2, "0")}:${mm}">${((h + 11) % 12) + 1}:${mm} ${h < 12 ? "AM" : "PM"}</option>`;
+  }).join("");
+}
+
+class Clash extends Error {}
+async function findClash(barber, when, len, excludeId) {
+  const finish = new Date(when.getTime() + len * 60000);
+  const near = await queryAll("appointment", { and: [{ field: "barber", op: "eq", value: barber.id }, { field: "status", op: "in", value: ["booked", "completed"] },
+    { field: "starts_at", op: "gte", value: new Date(when.getTime() - 8 * 3600000).toISOString() }, { field: "starts_at", op: "lt", value: finish.toISOString() }] });
+  const clash = near.find((a) => a.id !== excludeId && new Date(a.starts_at).getTime() + (Number(a.length_minutes) || SLOT_MIN) * 60000 > when.getTime());
+  if (!clash) return;
+  const t = new Date(clash.starts_at).toLocaleTimeString("en-US", { timeZone: TZ, hour: "numeric", minute: "2-digit" });
+  throw new Clash(`${barber.name} already has ${String(clash.summary ?? "an appointment")} at ${t}.`);
+}
+
+async function move(f) {
+  if (!/^appt_\w+$/.test(f.id ?? "")) throw new Error("Pick an appointment");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(f.date ?? "") || !/^\d{2}:\d{2}$/.test(f.time ?? "")) throw new Error("Pick a day and a time");
+  const appt = (await queryAll("appointment", { field: "id", op: "eq", value: f.id }))[0];
+  if (!appt) throw new Error("That appointment wasn't found");
+  if (appt.status !== "booked") throw new Error("Only booked appointments can be moved");
+  const barber = (await queryAll("barber", { field: "id", op: "eq", value: /^barb_\w+$/.test(f.barber ?? "") ? f.barber : appt.barber }))[0];
+  if (!barber) throw new Error("That barber wasn't found");
+  const { start } = dayBounds(f.date);
+  const [h, m] = f.time.split(":").map(Number);
+  const when = new Date(start.getTime() + (h * 60 + m) * 60000);
+  if (f.anyway !== "1") await findClash(barber, when, Number(appt.length_minutes) || SLOT_MIN, appt.id);
+  await crmWrite("PATCH", `/v1/objects/appointment/records/${appt.id}`, {
+    starts_at: when.toISOString(), barber: barber.id, ...(barber.home_chair ? { chair: barber.home_chair } : {}),
+  });
+  const client = (await queryAll("contact", { field: "id", op: "eq", value: appt.client }))[0];
+  if (client && client.next_booked_at === appt.starts_at) await crmWrite("PATCH", `/v1/objects/contact/records/${client.id}`, { next_booked_at: when.toISOString() });
+  return when.toLocaleString("en-US", { timeZone: TZ, weekday: "long", hour: "numeric", minute: "2-digit" });
 }
 
 // Reads a form post (small bodies only).
@@ -283,15 +351,8 @@ async function book(f) {
   const { start } = dayBounds(f.date);
   const [h, m] = f.time.split(":").map(Number);
   const when = new Date(start.getTime() + (h * 60 + m) * 60000);
-  const finish = new Date(when.getTime() + len * 60000);
   if (f.anyway !== "1") {
-    const sameDay = await queryAll("appointment", { and: [{ field: "barber", op: "eq", value: barber.id }, { field: "status", op: "in", value: ["booked", "completed"] },
-      { field: "starts_at", op: "gte", value: new Date(start.getTime() - 8 * 3600000).toISOString() }, { field: "starts_at", op: "lt", value: finish.toISOString() }] });
-    const clash = sameDay.find((a) => new Date(a.starts_at).getTime() + (Number(a.length_minutes) || SLOT_MIN) * 60000 > when.getTime());
-    if (clash) {
-      const t = new Date(clash.starts_at).toLocaleTimeString("en-US", { timeZone: TZ, hour: "numeric", minute: "2-digit" });
-      throw new Error(`${barber.name} already has ${String(clash.summary ?? "an appointment")} at ${t}. Pick another time, or tick "Book even if it overlaps".`);
-    }
+    try { await findClash(barber, when, len); } catch (e) { throw new Error(`${e.message} Pick another time, or tick "Book even if it overlaps".`); }
   }
   if (client === "new") client = await newClient(f, barber);
   await crmWrite("POST", "/v1/objects/appointment/records", {
@@ -320,7 +381,7 @@ main{max-width:1200px;margin:0 auto;padding:16px 16px 48px}h1{margin:0;font-size
 .lane{position:relative}.lane i{position:absolute;left:0;right:0;border-top:1px solid var(--line)}
 .appt{position:absolute;left:4px;right:4px;border-radius:8px;padding:4px 8px;font-size:13px;line-height:1.3;overflow:hidden;color:var(--fg);text-decoration:none;background:var(--book);border-left:4px solid var(--accent)}
 .appt span{display:block;color:var(--muted)}.appt.s-completed{background:var(--done);border-left-color:var(--muted)}.appt.s-no_show,.appt.s-cancelled{background:var(--miss);border-left-color:#c0533f}
-.appt:hover{outline:2px solid var(--accent)}.lane{cursor:copy}
+.appt:hover{outline:2px solid var(--accent)}.appt[draggable=true]{cursor:grab}.lane{cursor:copy}
 .notice{background:var(--book);border-radius:8px;padding:10px 14px}
 dialog{border:1px solid var(--line);border-radius:14px;background:var(--card);color:var(--fg);padding:20px;width:min(420px,92vw)}dialog::backdrop{background:#0006}
 dialog h2{margin:0 0 4px}dialog label{display:block;margin:10px 0}dialog input,dialog select{display:block;width:100%;box-sizing:border-box;font:inherit;padding:8px;margin-top:4px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--fg)}
@@ -344,11 +405,28 @@ http.createServer(async (req, res) => {
     }
     return;
   }
+  if (req.method === "POST" && url.pathname === "/move") {
+    const origin = req.headers.origin ?? "";
+    const drag = req.headers["x-calendar"] === "drag";
+    if (origin !== `http://localhost:${PORT}` && origin !== `http://127.0.0.1:${PORT}`) { res.writeHead(403).end("Moving only works from this computer's calendar page."); return; }
+    let f = {};
+    try {
+      f = await readForm(req);
+      const when = await move(f);
+      if (drag) res.writeHead(200, { "Content-Type": "application/json" }).end(JSON.stringify({ ok: true, when }));
+      else res.writeHead(303, { Location: `/calendar?date=${encodeURIComponent(f.date)}&moved=${encodeURIComponent(when)}` }).end();
+    } catch (e) {
+      if (drag) { res.writeHead(200, { "Content-Type": "application/json" }).end(JSON.stringify({ ok: false, clash: e instanceof Clash, error: e.message })); return; }
+      const day = /^\d{4}-\d{2}-\d{2}$/.test(f.from ?? "") ? f.from : todayYmd();
+      res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" }).end(await calendarPage(day, `Not moved: ${e.message}${e instanceof Clash ? ' Pick another time, or tick "Move even if it overlaps".' : ""}`));
+    }
+    return;
+  }
   if (!["/", "/index.html", "/calendar"].includes(url.pathname)) { res.writeHead(404).end("Not found"); return; }
   try {
     const date = url.searchParams.get("date");
     const html = url.pathname === "/calendar"
-      ? await calendarPage(/^\d{4}-\d{2}-\d{2}$/.test(date ?? "") ? date : todayYmd(), url.searchParams.get("booked") ? `Booked for ${url.searchParams.get("booked")}.` : "")
+      ? await calendarPage(/^\d{4}-\d{2}-\d{2}$/.test(date ?? "") ? date : todayYmd(), url.searchParams.get("booked") ? `Booked for ${url.searchParams.get("booked")}.` : url.searchParams.get("moved") ? `Moved to ${url.searchParams.get("moved")}.` : "")
       : page(await numbers());
     res.writeHead(200, { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" }).end(html);
   } catch (e) {
