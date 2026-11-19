@@ -126,3 +126,4 @@ objects:
       - { name: overdue, label: Overdue, type: boolean, default: false }
       - { name: reminder_text, label: Reminder message, type: long_text }
       - { name: reminder_sent_at, label: Reminder text sent, type: datetime }
+      - { name: nudged_at, label: Reminded again, type: datetime, description: "Last weekly 'still hasn't booked' reminder" }
