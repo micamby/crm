@@ -96,7 +96,7 @@ main{max-width:960px;margin:0 auto;padding:24px 16px 48px}h1{margin:0;font-size:
 .tbl{overflow-x:auto;background:var(--card);border:1px solid var(--line);border-radius:12px}table{border-collapse:collapse;width:100%;min-width:520px}
 th,td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--line)}th{color:var(--muted);font-weight:500;font-size:14px}tr:last-child td{border-bottom:0}
 .bar{height:10px;background:var(--accent);border-radius:5px}.day{display:grid;grid-template-columns:110px 1fr 40px;gap:10px;align-items:center;margin:6px 0}
-a{color:var(--accent)}.top{display:flex;gap:16px;align-items:center;padding:12px 16px;border-bottom:1px solid var(--line);background:var(--card)}.top b{margin-right:auto}.top a{color:var(--fg);text-decoration:none;padding:6px 10px;border-radius:8px}.top a.on{background:var(--line)}</style></head><body><nav class="top"><b>MICROSPACE</b><a href="/" class="on">Numbers</a><a href="/calendar">Calendar</a><a href="${esc(CRM)}" target="_blank" rel="noopener">Open the app</a></nav><main>
+a{color:var(--accent)}.top{display:flex;gap:16px;align-items:center;padding:12px 16px;border-bottom:1px solid var(--line);background:var(--card)}.top b{margin-right:auto}.top a{color:var(--fg);text-decoration:none;padding:6px 10px;border-radius:8px}.top a.on{background:var(--line)}</style></head><body><nav class="top"><b>MICROSPACE</b><a href="/" class="on">Numbers</a><a href="/calendar">Calendar</a><a href="/texts">Texts</a><a href="${esc(CRM)}" target="_blank" rel="noopener">Open the app</a></nav><main>
 <h1>MICROSPACE numbers</h1><p class="sub">Updated ${esc(n.updated.toLocaleString("en-US", { timeZone: TZ, dateStyle: "medium", timeStyle: "short" }))}. Refresh the page for the latest.</p>
 <div class="cards">
 ${card("Shop rebook rate (30 days)", shopRate === null ? "-" : shopRate + "%", REBOOK_WINDOW_NOTE)}
@@ -399,6 +399,68 @@ async function book(f) {
   return when.toLocaleTimeString("en-US", { timeZone: TZ, hour: "numeric", minute: "2-digit" });
 }
 
+
+// ---- Texts to send: one tap opens the phone's Messages with a friendly, ready-made text ----
+const firstWord = (n) => String(n ?? "").replace(/\s*\(sample\)\s*/i, "").split(/\s+/)[0] || "your barber";
+function fill(tpl, vars) { return String(tpl ?? "").replace(/\{(\w+)\}/g, (m, k) => (k in vars ? String(vars[k] ?? "") : m)).replace(/\s+$/, ""); }
+function smsHref(phone, body) {
+  const num = String(phone ?? "").replace(/[^\d+]/g, "");
+  return num ? `sms:${num}?&body=${encodeURIComponent(body)}` : null;
+}
+
+async function textsPage() {
+  const since = new Date(Date.now() - 14 * DAY).toISOString();
+  const [tpls, overdue, missed, barbers, usersRes, ws] = await Promise.all([
+    queryAll("message_template"),
+    queryAll("contact", { field: "overdue", op: "eq", value: true }),
+    queryAll("appointment", { and: [{ field: "status", op: "eq", value: "no_show" }, { field: "starts_at", op: "gte", value: since }, { field: "followup_sent_at", op: "is_null", value: true }] }),
+    queryAll("barber"),
+    fetch(`${CRM}/v1/users`, { headers: { Authorization: `Bearer ${KEY}` } }).then((r) => r.json()),
+    fetch(`${CRM}/v1/workspace`, { headers: { Authorization: `Bearer ${KEY}` } }).then((r) => r.json()).catch(() => ({})),
+  ]);
+  const tpl = Object.fromEntries(tpls.map((t) => [t.name, t.text]));
+  const shop = ws?.data?.name ?? "the shop";
+  const userName = new Map((usersRes.data ?? []).map((u) => [u.id, u.name]));
+  const barberName = new Map(barbers.map((b) => [b.id, b.name]));
+  const weekAgo = Date.now() - 7 * DAY;
+  const noShowClients = new Set(missed.map((a) => a.client));
+  const due = overdue.filter((c) => !noShowClients.has(c.id) && (!c.reminder_sent_at || new Date(c.reminder_sent_at).getTime() < weekAgo));
+  const clientIds = [...new Set(missed.map((a) => a.client))];
+  const missedClients = new Map((clientIds.length ? await queryAll("contact", { field: "id", op: "in", value: clientIds }) : []).map((c) => [c.id, c]));
+  const row = (kind, id, c, barber, body) => {
+    const href = smsHref(c.phone, body);
+    return `<div class="trow"><div class="twho"><b>${esc(c.first_name)} ${esc(c.last_name ?? "")}</b><span>${esc(firstWord(barber))}'s client${c.phone ? " · " + esc(c.phone) : ""}</span></div>
+      <p class="tbody">${esc(body)}</p>
+      <div class="tact">${href ? `<a class="btn primary" href="${esc(href)}" data-kind="${kind}" data-id="${esc(id)}">Text ${esc(c.first_name)}</a>` : `<span class="sub">No phone number on file</span>`}
+      <button class="btn" type="button" data-copy="${esc(body)}">Copy text</button>
+      <button class="btn" type="button" data-kind="${kind}" data-id="${esc(id)}" data-skip="1">Done, hide</button></div></div>`;
+  };
+  const policy = tpl["Cancellation policy"] ?? "";
+  const dueRows = due.map((c) => { const b = userName.get(c.owner); return row("reminder", c.id, c, b, fill(tpl["Time for a cut"], { first_name: c.first_name, barber: firstWord(b), shop, policy })); });
+  const missedRows = missed.map((a) => { const c = missedClients.get(a.client); if (!c) return "";
+    const b = barberName.get(a.barber); const time = new Date(a.starts_at).toLocaleTimeString("en-US", { timeZone: TZ, hour: "numeric", minute: "2-digit" });
+    const sameDay = new Date(a.starts_at).toLocaleDateString("en-CA", { timeZone: TZ }) === todayYmd();
+    const when = sameDay ? `today at ${time}` : `on ${new Date(a.starts_at).toLocaleDateString("en-US", { timeZone: TZ, weekday: "long" })} at ${time}`;
+    return row("noshow", a.id, c, b, fill(tpl["Missed appointment"], { first_name: c.first_name, barber: firstWord(b), shop, time, when, policy })); });
+  return shell("Texts", `<h1>Texts to send</h1>
+<p class="sub">Press <b>Text</b> and your Messages app opens with the text ready. Read it, change anything you like, and press send. Change the wording any time under <a href="${esc(CRM)}/o/message_template" target="_blank" rel="noopener">Messages</a> in the app.</p>
+<h2>Missed appointments (${missedRows.filter(Boolean).length})</h2>${missedRows.filter(Boolean).join("") || "<p>No one to follow up right now.</p>"}
+<h2>Time for a cut (${dueRows.length})</h2>${dueRows.join("") || "<p>No one is overdue right now.</p>"}
+<script>
+async function mark(kind,id){await fetch("/texted",{method:"POST",headers:{"X-Calendar":"texted"},body:new URLSearchParams({kind,id})});}
+document.querySelectorAll("a[data-kind]").forEach(a=>a.addEventListener("click",()=>{mark(a.dataset.kind,a.dataset.id);a.textContent="Opened Messages";a.closest(".trow").classList.add("sent");}));
+document.querySelectorAll("button[data-skip]").forEach(b=>b.addEventListener("click",async()=>{await mark(b.dataset.kind,b.dataset.id);b.closest(".trow").remove();}));
+document.querySelectorAll("button[data-copy]").forEach(b=>b.addEventListener("click",async()=>{try{await navigator.clipboard.writeText(b.dataset.copy);b.textContent="Copied";}catch(e){b.textContent="Couldn't copy";}}));
+</script>`);
+}
+
+async function markTexted(f) {
+  const at = new Date().toISOString();
+  if (f.kind === "reminder" && /^con_\w+$/.test(f.id ?? "")) return crmWrite("PATCH", `/v1/objects/contact/records/${f.id}`, { reminder_sent_at: at });
+  if (f.kind === "noshow" && /^appt_\w+$/.test(f.id ?? "")) return crmWrite("PATCH", `/v1/objects/appointment/records/${f.id}`, { followup_sent_at: at });
+  throw new Error("Unknown text");
+}
+
 function shell(title, body) {
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>MICROSPACE ${esc(title)}</title><style>
@@ -418,13 +480,15 @@ main{max-width:1200px;margin:0 auto;padding:16px 16px 48px}h1{margin:0;font-size
 .lane{position:relative}.lane i{position:absolute;left:0;right:0;border-top:1px solid var(--line)}
 .appt{position:absolute;left:4px;right:4px;border-radius:8px;padding:4px 8px;font-size:13px;line-height:1.3;overflow:hidden;color:var(--fg);text-decoration:none;background:var(--book);border-left:4px solid var(--accent)}
 .appt span{display:block;color:var(--muted)}.appt.s-completed{background:var(--done);border-left-color:var(--muted)}.appt.s-no_show,.appt.s-cancelled{background:var(--miss);border-left-color:#c0533f}
-.appt:hover{outline:2px solid var(--accent)}.appt[draggable=true]{cursor:grab}.appt.here{background:#f7e7b4;border-left-color:#b8860b;color:#1d1d1b}.appt.here span{color:#5b4a14}
+.trow{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin:10px 0}.trow.sent{opacity:.6}.twho span{display:block;color:var(--muted);font-size:14px}
+.tbody{margin:8px 0;padding:10px;border-radius:8px;background:var(--bg)}.tact{display:flex;flex-wrap:wrap;gap:8px}.btn.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+h2{font-size:18px;margin:24px 0 8px}.appt:hover{outline:2px solid var(--accent)}.appt[draggable=true]{cursor:grab}.appt.here{background:#f7e7b4;border-left-color:#b8860b;color:#1d1d1b}.appt.here span{color:#5b4a14}
 .quick{display:grid;gap:8px;margin:12px 0}.quick textarea{display:block;width:100%;box-sizing:border-box;font:inherit;padding:8px;margin-top:4px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--fg)}.movehead{margin:16px 0 0;font-size:16px}.lane{cursor:copy}
 .notice{background:var(--book);border-radius:8px;padding:10px 14px}
 dialog{border:1px solid var(--line);border-radius:14px;background:var(--card);color:var(--fg);padding:20px;width:min(420px,92vw)}dialog::backdrop{background:#0006}
 dialog h2{margin:0 0 4px}dialog label{display:block;margin:10px 0}dialog input,dialog select{display:block;width:100%;box-sizing:border-box;font:inherit;padding:8px;margin-top:4px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--fg)}
 dialog label.inline{display:flex;gap:8px;align-items:center}dialog label.inline input{display:inline;width:auto;margin:0}.actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}.btn.primary{background:var(--accent);color:#fff;border-color:var(--accent);font:inherit;cursor:pointer}button.btn{font:inherit;cursor:pointer}
-</style></head><body><nav class="top"><b>MICROSPACE</b><a href="/" class="${title === "Numbers" ? "on" : ""}">Numbers</a><a href="/calendar" class="${title === "Calendar" ? "on" : ""}">Calendar</a><a href="${esc(CRM)}" target="_blank" rel="noopener">Open the app</a></nav><main>${body}</main></body></html>`;
+</style></head><body><nav class="top"><b>MICROSPACE</b><a href="/" class="${title === "Numbers" ? "on" : ""}">Numbers</a><a href="/calendar" class="${title === "Calendar" ? "on" : ""}">Calendar</a><a href="/texts" class="${title === "Texts" ? "on" : ""}">Texts</a><a href="${esc(CRM)}" target="_blank" rel="noopener">Open the app</a></nav><main>${body}</main></body></html>`;
 }
 
 http.createServer(async (req, res) => {
@@ -441,6 +505,13 @@ http.createServer(async (req, res) => {
       const day = /^\d{4}-\d{2}-\d{2}$/.test(f.date ?? "") ? f.date : todayYmd();
       res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" }).end(await calendarPage(day, `Not booked: ${e.message}`));
     }
+    return;
+  }
+  if (req.method === "POST" && url.pathname === "/texted") {
+    const origin = req.headers.origin ?? "";
+    if ((origin !== `http://localhost:${PORT}` && origin !== `http://127.0.0.1:${PORT}`) || req.headers["x-calendar"] !== "texted") { res.writeHead(403).end("Only from this computer."); return; }
+    try { await markTexted(await readForm(req)); res.writeHead(200, { "Content-Type": "application/json" }).end('{"ok":true}'); }
+    catch (e) { res.writeHead(200, { "Content-Type": "application/json" }).end(JSON.stringify({ ok: false, error: e.message })); }
     return;
   }
   if (req.method === "POST" && url.pathname === "/status") {
@@ -465,6 +536,11 @@ http.createServer(async (req, res) => {
       const day = /^\d{4}-\d{2}-\d{2}$/.test(f.from ?? "") ? f.from : todayYmd();
       res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" }).end(await calendarPage(day, `Not moved: ${e.message}${e instanceof Clash ? ' Pick another time, or tick "Move even if it overlaps".' : ""}`));
     }
+    return;
+  }
+  if (url.pathname === "/texts") {
+    try { res.writeHead(200, { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" }).end(await textsPage()); }
+    catch (e) { res.writeHead(502, { "Content-Type": "text/plain; charset=utf-8" }).end(`Couldn't read the CRM. Is Docker running? (${e.message})`); }
     return;
   }
   if (!["/", "/index.html", "/calendar"].includes(url.pathname)) { res.writeHead(404).end("Not found"); return; }
