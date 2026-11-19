@@ -1,0 +1,75 @@
+[
+  {
+    "name": "Client overdue for a cut",
+    "description": "The client is past their comes-back-every date and has nothing booked. Tells their barber and the shop owner.",
+    "object": "contact",
+    "trigger": {
+      "type": "event",
+      "event": "contact.updated",
+      "changed_fields": [
+        "overdue"
+      ]
+    },
+    "condition": {
+      "op": "eq",
+      "field": "overdue",
+      "value": true
+    },
+    "severity": "warning",
+    "recipients": {
+      "record_owner": true,
+      "users": [
+        "usr_01M7R272BMED896NB6K3KF7V0K"
+      ]
+    },
+    "cooldown_hours": null
+  },
+  {
+    "name": "Appointment not marked done",
+    "description": "Three hours after an appointment it is still Booked. Mark it Completed or No-show.",
+    "object": "appointment",
+    "trigger": {
+      "type": "field_passed",
+      "field": "starts_at",
+      "offset_hours": 3
+    },
+    "condition": {
+      "op": "eq",
+      "field": "status",
+      "value": "booked"
+    },
+    "severity": "info",
+    "recipients": {
+      "record_owner": false,
+      "users": [
+        "usr_01M7R272BMED896NB6K3KF7V0K"
+      ]
+    },
+    "cooldown_hours": null
+  },
+  {
+    "name": "Still not booked a week later",
+    "description": "The client is still overdue and has nothing booked a week on, even if they were reminded or texted. Barber and owner decide what to do next.",
+    "object": "contact",
+    "trigger": {
+      "type": "event",
+      "event": "contact.updated",
+      "changed_fields": [
+        "nudged_at"
+      ]
+    },
+    "condition": {
+      "op": "eq",
+      "field": "overdue",
+      "value": true
+    },
+    "severity": "warning",
+    "recipients": {
+      "record_owner": true,
+      "users": [
+        "usr_01M7R272BMED896NB6K3KF7V0K"
+      ]
+    },
+    "cooldown_hours": null
+  }
+]
