@@ -8,5 +8,7 @@ Run it (the CRM must be running in Docker):
 
     node barbershop-dashboard/server.mjs
 
+To have it start by itself at login: `sh barbershop-dashboard/install-autostart.sh` (run it again after changing server.mjs).
+
 then open http://localhost:8790. It only listens on this computer. It reads the CRM's ops key from
 `~/Desktop/CRM-SECRET-KEYS.txt` (or `HLCRM_OPS_KEY`), and never writes anything.

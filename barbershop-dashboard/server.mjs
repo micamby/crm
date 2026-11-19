@@ -13,6 +13,8 @@ const TZ = process.env.SHOP_TIMEZONE ?? "America/Chicago";
 
 function opsKey() {
   if (process.env.HLCRM_OPS_KEY) return process.env.HLCRM_OPS_KEY;
+  // When started automatically at login, the key is read from a private copy outside the Desktop folder.
+  if (process.env.HLCRM_OPS_KEY_FILE) return readFileSync(process.env.HLCRM_OPS_KEY_FILE, "utf8").trim();
   const text = readFileSync(join(homedir(), "Desktop", "CRM-SECRET-KEYS.txt"), "utf8");
   const m = text.match(/Ops key[^:]*:\s*(hlcrm_\w+)/);
   if (!m) throw new Error("No ops key found in CRM-SECRET-KEYS.txt");
