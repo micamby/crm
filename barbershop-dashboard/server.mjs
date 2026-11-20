@@ -5,6 +5,7 @@ import http from "node:http";
 import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import { syncSquire } from "./squire-sync.mjs";
 
 const CRM = process.env.HLCRM_URL ?? "http://localhost:8787";
 const PORT = Number(process.env.PORT ?? 8790);
@@ -247,6 +248,7 @@ async function calendarPage(ymd, notice = "") {
   </form>
 </div>
 ${notice ? `<p class="notice">${esc(notice)}</p>` : ""}
+${lastSync.report && lastSync.report.barbers ? `<p class="sub">Squire: last checked ${esc(lastSync.at.toLocaleTimeString("en-US", { timeZone: TZ, hour: "numeric", minute: "2-digit" }))}${lastSync.report.errors?.length ? ` · <b>problem:</b> ${esc(lastSync.report.errors.join("; "))}` : ""} · <a href="#" onclick="fetch('/sync',{method:'POST',headers:{'X-Calendar':'sync'}}).then(()=>location.reload());return false">Check Squire now</a></p>` : ""}
 <p class="sub">${appts.length} appointment${appts.length === 1 ? "" : "s"}. <b>Click an empty time</b> to book. <b>Drag</b> a booked appointment to move it, or <b>click</b> it to move it to another day or open it in the app.</p>
 <div class="cal" style="--cols:${cols.length}">
   <div class="times" style="height:${height}px">${hours.map((h) => `<span style="top:${(h - OPEN_HOUR) * 60 * PX_PER_MIN}px">${hourLabel(h)}</span>`).join("")}</div>
@@ -546,6 +548,21 @@ dialog label.inline{display:flex;gap:8px;align-items:center}dialog label.inline 
 ${THEME}</style></head><body><nav class="top">${BRAND}<a href="/" class="${title === "Numbers" ? "on" : ""}">Numbers</a><a href="/calendar" class="${title === "Calendar" ? "on" : ""}">Calendar</a><a href="/texts" class="${title === "Texts" ? "on" : ""}">Texts</a><a href="${esc(CRM)}" target="_blank" rel="noopener">Open the app</a></nav><main>${body}</main></body></html>`;
 }
 
+// ---- Squire sync: every 10 minutes, plus a "Check Squire now" button on the calendar ----
+let lastSync = { at: null, report: null };
+async function userIdFor(email) {
+  if (!email) return null;
+  const r = await fetch(`${CRM}/v1/users`, { headers: { Authorization: `Bearer ${KEY}` } }).then((x) => x.json()).catch(() => ({}));
+  return (r.data ?? []).find((u) => u.email === email)?.id ?? null;
+}
+async function runSquireSync() {
+  try { lastSync = { at: new Date(), report: await syncSquire({ queryAll, crmWrite, shopTz: TZ, userIdFor }) }; }
+  catch (e) { lastSync = { at: new Date(), report: { errors: [e.message] } }; }
+  return lastSync;
+}
+setTimeout(runSquireSync, 20000);
+setInterval(runSquireSync, 10 * 60000);
+
 http.createServer(async (req, res) => {
   const url = new URL(req.url, "http://localhost");
   if (req.method === "POST" && url.pathname === "/book") {
@@ -560,6 +577,13 @@ http.createServer(async (req, res) => {
       const day = /^\d{4}-\d{2}-\d{2}$/.test(f.date ?? "") ? f.date : todayYmd();
       res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" }).end(await calendarPage(day, `Not booked: ${e.message}`));
     }
+    return;
+  }
+  if (req.method === "POST" && url.pathname === "/sync") {
+    const origin = req.headers.origin ?? "";
+    if ((origin !== `http://localhost:${PORT}` && origin !== `http://127.0.0.1:${PORT}`) || req.headers["x-calendar"] !== "sync") { res.writeHead(403).end("Only from this computer."); return; }
+    const r = await runSquireSync();
+    res.writeHead(200, { "Content-Type": "application/json" }).end(JSON.stringify({ ok: true, report: r.report }));
     return;
   }
   if (req.method === "POST" && url.pathname === "/texted") {
