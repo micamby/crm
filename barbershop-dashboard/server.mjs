@@ -154,19 +154,27 @@ ${n.overdue.slice(0, 50).map((c) => `<tr><td><a href="${esc(CRM)}/o/contact/${es
 const LOGO_SVG = `<svg class="mark" viewBox="0 0 100 130" aria-hidden="true"><defs><linearGradient id="mg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b9b9b9"/><stop offset=".55" stop-color="#3a3a3a"/><stop offset="1" stop-color="#0a0a0a"/></linearGradient></defs><polygon points="0,0 49.5,48 49.5,130 0,130" fill="url(#mg)"/><polygon points="100,0 50.5,48 50.5,130 100,130" fill="url(#mg)"/></svg>`;
 const BRAND = `<a class="brand" href="/">${LOGO_SVG}<span class="word">MICRO</span></a>`;
 const THEME = `
-:root{color-scheme:dark;--bg:#000;--fg:#ececec;--muted:#8d8d8d;--card:#0f0f0f;--line:#262626;--accent:#e6e6e6;--done:#151515;--miss:#2a1414;--book:#1c1c1c}
+:root{color-scheme:light;--bg:#fff;--fg:#0b0b0b;--muted:#6e6e6e;--card:#fff;--line:#e6e6e6;--accent:#0b0b0b;--done:#f3f3f3;--miss:#fbeeee;--book:#0b0b0b}
 body{margin:0;font:16px/1.45 "Helvetica Neue",Helvetica,Arial,system-ui,sans-serif;background:var(--bg);color:var(--fg);letter-spacing:.01em}
-.top{display:flex;gap:6px;align-items:center;padding:12px 16px;border-bottom:1px solid var(--line);background:#000;position:sticky;top:env(safe-area-inset-top,0px);z-index:5}
-.top a{color:var(--muted);text-decoration:none;padding:6px 12px;border-radius:999px;font-size:15px;letter-spacing:.06em;text-transform:uppercase}
-.top a:hover{color:#fff}.top a.on{color:#000;background:linear-gradient(90deg,#9a9a9a,#f2f2f2)}
+.top{display:flex;gap:6px;align-items:center;padding:12px 16px;background:#000;position:sticky;top:env(safe-area-inset-top,0px);z-index:5}
+.top a{color:#9a9a9a;text-decoration:none;padding:6px 12px;border-radius:999px;font-size:14px;letter-spacing:.08em;text-transform:uppercase}
+.top a:hover{color:#fff}.top a.on{color:#000;background:#fff}
 .brand{display:flex;align-items:center;gap:10px;margin-right:auto;padding:0!important;text-transform:none!important}
-.mark{width:22px;height:28px}.word{font-weight:700;font-size:18px;letter-spacing:.32em;background:linear-gradient(90deg,#1a1a1a 0%,#7a7a7a 40%,#f5f5f5 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
-h1{font-weight:600;letter-spacing:.02em}h2{font-weight:600;letter-spacing:.08em;text-transform:uppercase;font-size:14px;color:var(--muted)}
-a{color:#f2f2f2}.btn.primary,button.btn.primary{background:linear-gradient(90deg,#bdbdbd,#f5f5f5);color:#000;border-color:#d0d0d0}
+.mark{width:22px;height:28px}.word{font-weight:700;font-size:18px;letter-spacing:.32em;background:linear-gradient(90deg,#2a2a2a 0%,#8a8a8a 40%,#ffffff 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
+h1{font-weight:600;letter-spacing:.01em}h2{font-weight:600;letter-spacing:.1em;text-transform:uppercase;font-size:13px;color:var(--muted)}
+a{color:#0b0b0b}.card,.tbl,.trow,.cal{box-shadow:0 1px 2px rgba(0,0,0,.04)}
+.btn{background:#fff;color:#0b0b0b;border:1px solid #d6d6d6}.btn.primary,button.btn.primary{background:#0b0b0b;color:#fff;border-color:#0b0b0b}
 .hero{position:relative;border-radius:16px;overflow:hidden;margin:4px 0 20px;min-height:180px;background:#000 url(/assets/chair.jpg) center 62%/cover no-repeat;display:flex;align-items:flex-end}
-.hero::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,#000 0%,rgba(0,0,0,.55) 45%,rgba(0,0,0,.15) 100%)}
-.hero div{position:relative;z-index:1;padding:20px 22px}.hero h1{font-size:28px;margin:0}.hero p{margin:4px 0 0;color:#bdbdbd}
-@media (max-width:600px){.top a{padding:6px 8px;font-size:13px}.word{display:none}}
+.hero::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,#000 0%,rgba(0,0,0,.55) 45%,rgba(0,0,0,.1) 100%)}
+.hero div{position:relative;z-index:1;padding:20px 22px;color:#fff}.hero h1{font-size:28px;margin:0}.hero p{margin:4px 0 0;color:#cfcfcf}
+.appt{color:#fff!important;border-left-color:#fff!important}.appt span{color:#bdbdbd!important}
+.appt.s-completed{background:var(--done)!important;color:#0b0b0b!important;border-left-color:#bdbdbd!important}.appt.s-completed span{color:#6e6e6e!important}
+.appt.s-no_show,.appt.s-cancelled{background:var(--miss)!important;color:#7a1f1f!important;border-left-color:#c0533f!important}.appt.s-no_show span,.appt.s-cancelled span{color:#9a5a5a!important}
+.appt.here{background:#fff!important;color:#0b0b0b!important;border:2px solid #0b0b0b!important;border-left-width:6px!important}.appt.here span{color:#444!important}
+.notice{background:#f5f5f5!important;border:1px solid #dcdcdc!important}
+dialog{box-shadow:0 20px 60px rgba(0,0,0,.25)}dialog::backdrop{background:rgba(0,0,0,.45)!important}
+.bar{background:#0b0b0b!important}.tbody{background:#f6f6f6!important}
+@media (max-width:600px){.top a{padding:6px 8px;font-size:12px}.word{display:none}}
 `;
 
 // ---- Calendar: one day, one column per barber ----
