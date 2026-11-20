@@ -6,6 +6,7 @@ set -e
 D="$HOME/Library/Application Support/MICROSPACE"
 mkdir -p "$D" && chmod 700 "$D"
 cp "$(dirname "$0")/server.mjs" "$D/server.mjs"
+mkdir -p "$D/assets" && cp "$(dirname "$0")"/assets/* "$D/assets/"
 grep -o 'Ops key[^:]*: *hlcrm_[A-Za-z0-9_]*' "$HOME/Desktop/CRM-SECRET-KEYS.txt" | grep -o 'hlcrm_[A-Za-z0-9_]*' > "$D/ops-key"
 chmod 600 "$D/ops-key"
 P="$HOME/Library/LaunchAgents/com.microspace.dashboard.plist"

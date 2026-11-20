@@ -114,18 +114,16 @@ function page(n) {
   const card = (label, value, note = "") => `<div class="card"><div class="v">${esc(value)}</div><div class="l">${esc(label)}</div>${note ? `<div class="n">${esc(note)}</div>` : ""}</div>`;
   const shopRate = pct(n.shop.rebooked30, n.shop.done30);
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MICROSPACE numbers</title><style>
-:root{color-scheme:light dark;--bg:#f6f5f2;--fg:#1d1d1b;--muted:#6b6a66;--card:#fff;--line:#e4e2dc;--accent:#1f6f5c}
-@media (prefers-color-scheme:dark){:root{--bg:#161615;--fg:#eeede9;--muted:#a3a29c;--card:#22221f;--line:#34332f;--accent:#5fc4a8}}
-body{margin:0;font:16px/1.45 system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--fg)}
+<title>MICRO numbers</title><style>
+
 main{max-width:960px;margin:0 auto;padding:24px 16px 48px}h1{margin:0;font-size:26px}h2{font-size:18px;margin:32px 0 10px}
 .sub{color:var(--muted);margin:4px 0 20px}.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px}.v{font-size:30px;font-weight:650}.l{color:var(--muted)}.n{color:var(--muted);font-size:13px;margin-top:4px}
 .tbl{overflow-x:auto;background:var(--card);border:1px solid var(--line);border-radius:12px}table{border-collapse:collapse;width:100%;min-width:520px}
 th,td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--line)}th{color:var(--muted);font-weight:500;font-size:14px}tr:last-child td{border-bottom:0}
-.bar{height:10px;background:var(--accent);border-radius:5px}.day{display:grid;grid-template-columns:110px 1fr 40px;gap:10px;align-items:center;margin:6px 0}
-a{color:var(--accent)}.top{display:flex;gap:16px;align-items:center;padding:12px 16px;border-bottom:1px solid var(--line);background:var(--card)}.top b{margin-right:auto}.top a{color:var(--fg);text-decoration:none;padding:6px 10px;border-radius:8px}.top a.on{background:var(--line)}</style></head><body><nav class="top"><b>MICROSPACE</b><a href="/" class="on">Numbers</a><a href="/calendar">Calendar</a><a href="/texts">Texts</a><a href="${esc(CRM)}" target="_blank" rel="noopener">Open the app</a></nav><main>
-<h1>MICROSPACE numbers</h1><p class="sub">Updated ${esc(n.updated.toLocaleString("en-US", { timeZone: TZ, dateStyle: "medium", timeStyle: "short" }))}. Refresh the page for the latest.</p>
+.bar{height:10px;background:linear-gradient(90deg,#3a3a3a,#f0f0f0);border-radius:5px}.day{display:grid;grid-template-columns:110px 1fr 40px;gap:10px;align-items:center;margin:6px 0}
+${THEME}</style></head><body><nav class="top">${BRAND}<a href="/" class="on">Numbers</a><a href="/calendar">Calendar</a><a href="/texts">Texts</a><a href="${esc(CRM)}" target="_blank" rel="noopener">Open the app</a></nav><main>
+<section class="hero"><div><h1>Shop numbers</h1><p>Every chair, every rebook, at a glance.</p></div></section><p class="sub">Updated ${esc(n.updated.toLocaleString("en-US", { timeZone: TZ, dateStyle: "medium", timeStyle: "short" }))}. Refresh the page for the latest.</p>
 <div class="cards">
 ${card("Shop rebook rate (30 days)", shopRate === null ? "-" : shopRate + "%", REBOOK_WINDOW_NOTE)}
 ${card("Retention", pct(n.shop.retained, n.shop.cohort) === null ? "-" : pct(n.shop.retained, n.shop.cohort) + "%", "new clients who came back")}
@@ -150,6 +148,26 @@ ${n.overdue.slice(0, 50).map((c) => `<tr><td><a href="${esc(CRM)}/o/contact/${es
 </main></body></html>`;
 }
 
+
+
+// ---- MICRO brand: black and silver, from the shop's logo ----
+const LOGO_SVG = `<svg class="mark" viewBox="0 0 100 130" aria-hidden="true"><defs><linearGradient id="mg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b9b9b9"/><stop offset=".55" stop-color="#3a3a3a"/><stop offset="1" stop-color="#0a0a0a"/></linearGradient></defs><polygon points="0,0 49.5,48 49.5,130 0,130" fill="url(#mg)"/><polygon points="100,0 50.5,48 50.5,130 100,130" fill="url(#mg)"/></svg>`;
+const BRAND = `<a class="brand" href="/">${LOGO_SVG}<span class="word">MICRO</span></a>`;
+const THEME = `
+:root{color-scheme:dark;--bg:#000;--fg:#ececec;--muted:#8d8d8d;--card:#0f0f0f;--line:#262626;--accent:#e6e6e6;--done:#151515;--miss:#2a1414;--book:#1c1c1c}
+body{margin:0;font:16px/1.45 "Helvetica Neue",Helvetica,Arial,system-ui,sans-serif;background:var(--bg);color:var(--fg);letter-spacing:.01em}
+.top{display:flex;gap:6px;align-items:center;padding:12px 16px;border-bottom:1px solid var(--line);background:#000;position:sticky;top:env(safe-area-inset-top,0px);z-index:5}
+.top a{color:var(--muted);text-decoration:none;padding:6px 12px;border-radius:999px;font-size:15px;letter-spacing:.06em;text-transform:uppercase}
+.top a:hover{color:#fff}.top a.on{color:#000;background:linear-gradient(90deg,#9a9a9a,#f2f2f2)}
+.brand{display:flex;align-items:center;gap:10px;margin-right:auto;padding:0!important;text-transform:none!important}
+.mark{width:22px;height:28px}.word{font-weight:700;font-size:18px;letter-spacing:.32em;background:linear-gradient(90deg,#1a1a1a 0%,#7a7a7a 40%,#f5f5f5 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
+h1{font-weight:600;letter-spacing:.02em}h2{font-weight:600;letter-spacing:.08em;text-transform:uppercase;font-size:14px;color:var(--muted)}
+a{color:#f2f2f2}.btn.primary,button.btn.primary{background:linear-gradient(90deg,#bdbdbd,#f5f5f5);color:#000;border-color:#d0d0d0}
+.hero{position:relative;border-radius:16px;overflow:hidden;margin:4px 0 20px;min-height:180px;background:#000 url(/assets/chair.jpg) center 62%/cover no-repeat;display:flex;align-items:flex-end}
+.hero::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,#000 0%,rgba(0,0,0,.55) 45%,rgba(0,0,0,.15) 100%)}
+.hero div{position:relative;z-index:1;padding:20px 22px}.hero h1{font-size:28px;margin:0}.hero p{margin:4px 0 0;color:#bdbdbd}
+@media (max-width:600px){.top a{padding:6px 8px;font-size:13px}.word{display:none}}
+`;
 
 // ---- Calendar: one day, one column per barber ----
 const SERVICE = { haircut: "Haircut", skin_fade: "Skin fade", cut_and_beard: "Cut and beard", beard_trim: "Beard trim", lineup: "Line-up", kids_cut: "Kids cut" };
@@ -207,7 +225,7 @@ async function calendarPage(ymd, notice = "") {
       ? new Date(a.checked_in_at).toLocaleTimeString("en-US", { timeZone: TZ, hour: "numeric", minute: "2-digit" }) : "";
     return `<a class="appt s-${esc(a.status)}${here ? " here" : ""}" title="${esc(time)} - ${esc(end)}. Drag to move, or click for options." style="top:${top}px;height:${Math.max(18, len * PX_PER_MIN - 3)}px" href="${esc(CRM)}/o/appointment/${esc(a.id)}" target="_blank" rel="noopener"
       draggable="${a.status === "booked" ? "true" : "false"}" data-id="${esc(a.id)}" data-barber="${esc(a.barber ?? "")}" data-time="${esc(new Date(a.starts_at).toLocaleTimeString("en-GB", { timeZone: TZ, hour: "2-digit", minute: "2-digit" }))}" data-who="${esc(who)}" data-status="${esc(a.status)}" data-here="${a.checked_in_at ? "1" : ""}" data-notes="${esc(a.visit_notes ?? "")}">
-      <b>${here ? "✓ " : ""}${esc(time)} ${esc(who)}</b><span>${here ? `Here since ${esc(here)} · ` : ""}${esc(svcName.get(a.service_type) ?? SERVICE[a.service] ?? "")} · ${len} min${a.status !== "booked" ? " · " + esc({ completed: "Done", no_show: "No-show", cancelled: "Cancelled" }[a.status] ?? a.status) : ""}${a.booked_via === "square" ? " · Square" : ""}</span></a>`;
+      <b>${here ? "✓ " : ""}${esc(time)} ${esc(who)}</b><span>${here ? `Here since ${esc(here)} · ` : ""}${[svcName.get(a.service_type) ?? SERVICE[a.service], `${len} min`].filter(Boolean).map(esc).join(" · ")}${a.status !== "booked" ? " · " + esc({ completed: "Done", no_show: "No-show", cancelled: "Cancelled" }[a.status] ?? a.status) : ""}${a.booked_via === "square" ? " · Square" : ""}</span></a>`;
   };
   const unassigned = appts.filter((a) => !cols.some((b) => b.id === a.barber));
   return shell("Calendar", `
@@ -496,14 +514,10 @@ async function markTexted(f) {
 
 function shell(title, body) {
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MICROSPACE ${esc(title)}</title><style>
-:root{color-scheme:light dark;--bg:#f6f5f2;--fg:#1d1d1b;--muted:#6b6a66;--card:#fff;--line:#e4e2dc;--accent:#1f6f5c;--done:#e7e5df;--miss:#f6dcd6;--book:#d9ece6}
-@media (prefers-color-scheme:dark){:root{--bg:#161615;--fg:#eeede9;--muted:#a3a29c;--card:#22221f;--line:#34332f;--accent:#5fc4a8;--done:#2c2c29;--miss:#4a2a25;--book:#1f3a33}}
-body{margin:0;font:16px/1.45 system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--fg)}
+<title>MICRO ${esc(title)}</title><link rel="icon" href="data:image/svg+xml,${encodeURIComponent(LOGO_SVG.replace('class="mark" ', 'xmlns="http://www.w3.org/2000/svg" '))}"><style>
+
 main{max-width:1200px;margin:0 auto;padding:16px 16px 48px}h1{margin:0;font-size:24px}
-.top{display:flex;gap:16px;align-items:center;padding:12px 16px;border-bottom:1px solid var(--line);background:var(--card)}.top b{margin-right:auto}
-.top a{color:var(--fg);text-decoration:none;padding:6px 10px;border-radius:8px}.top a.on{background:var(--book)}
-.sub{color:var(--muted)}a{color:var(--accent)}
+.sub{color:var(--muted)}
 .calhead{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;margin:8px 0}
 .nav{display:flex;flex-wrap:wrap;gap:8px;align-items:center}.btn{border:1px solid var(--line);background:var(--card);border-radius:8px;padding:6px 10px;color:var(--fg);text-decoration:none}
 .nav input{font:inherit;padding:5px 8px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--fg)}
@@ -511,17 +525,17 @@ main{max-width:1200px;margin:0 auto;padding:16px 16px 48px}h1{margin:0;font-size
 .times{position:relative;margin-top:41px}.times span{position:absolute;right:8px;transform:translateY(-50%);font-size:12px;color:var(--muted)}
 .col{border-left:1px solid var(--line)}.colhead{position:sticky;top:0;padding:10px;font-weight:600;border-bottom:1px solid var(--line);height:20px;background:var(--card)}
 .lane{position:relative}.lane i{position:absolute;left:0;right:0;border-top:1px solid var(--line)}
-.appt{position:absolute;left:4px;right:4px;border-radius:8px;padding:4px 8px;font-size:13px;line-height:1.3;overflow:hidden;color:var(--fg);text-decoration:none;background:var(--book);border-left:4px solid var(--accent)}
+.appt{position:absolute;left:4px;right:4px;border-radius:8px;padding:4px 8px;font-size:13px;line-height:1.3;overflow:hidden;color:var(--fg);text-decoration:none;background:var(--book);border-left:4px solid #bdbdbd}
 .appt span{display:block;color:var(--muted)}.appt.s-completed{background:var(--done);border-left-color:var(--muted)}.appt.s-no_show,.appt.s-cancelled{background:var(--miss);border-left-color:#c0533f}
 .trow{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin:10px 0}.trow.sent{opacity:.6}.twho span{display:block;color:var(--muted);font-size:14px}
 .tbody{margin:8px 0;padding:10px;border-radius:8px;background:var(--bg)}.tact{display:flex;flex-wrap:wrap;gap:8px}.btn.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
-h2{font-size:18px;margin:24px 0 8px}.appt:hover{outline:2px solid var(--accent)}.appt[draggable=true]{cursor:grab}.appt.here{background:#f7e7b4;border-left-color:#b8860b;color:#1d1d1b}.appt.here span{color:#5b4a14}
+h2{font-size:18px;margin:24px 0 8px}.appt:hover{outline:2px solid var(--accent)}.appt[draggable=true]{cursor:grab}.appt.here{background:#e9e9e9;border-left-color:#fff;color:#000}.appt.here span{color:#333}
 .quick{display:grid;gap:8px;margin:12px 0}.quick textarea{display:block;width:100%;box-sizing:border-box;font:inherit;padding:8px;margin-top:4px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--fg)}.movehead{margin:16px 0 0;font-size:16px}.lane{cursor:copy}
-.notice{background:var(--book);border-radius:8px;padding:10px 14px}
-dialog{border:1px solid var(--line);border-radius:14px;background:var(--card);color:var(--fg);padding:20px;width:min(420px,92vw)}dialog::backdrop{background:#0006}
+.notice{background:#1c1c1c;border:1px solid #3a3a3a;border-radius:8px;padding:10px 14px}
+dialog{border:1px solid var(--line);border-radius:14px;background:var(--card);color:var(--fg);padding:20px;width:min(420px,92vw)}dialog::backdrop{background:#000b}
 dialog h2{margin:0 0 4px}dialog label{display:block;margin:10px 0}dialog input,dialog select{display:block;width:100%;box-sizing:border-box;font:inherit;padding:8px;margin-top:4px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--fg)}
 dialog label.inline{display:flex;gap:8px;align-items:center}dialog label.inline input{display:inline;width:auto;margin:0}.actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}.btn.primary{background:var(--accent);color:#fff;border-color:var(--accent);font:inherit;cursor:pointer}button.btn{font:inherit;cursor:pointer}
-</style></head><body><nav class="top"><b>MICROSPACE</b><a href="/" class="${title === "Numbers" ? "on" : ""}">Numbers</a><a href="/calendar" class="${title === "Calendar" ? "on" : ""}">Calendar</a><a href="/texts" class="${title === "Texts" ? "on" : ""}">Texts</a><a href="${esc(CRM)}" target="_blank" rel="noopener">Open the app</a></nav><main>${body}</main></body></html>`;
+${THEME}</style></head><body><nav class="top">${BRAND}<a href="/" class="${title === "Numbers" ? "on" : ""}">Numbers</a><a href="/calendar" class="${title === "Calendar" ? "on" : ""}">Calendar</a><a href="/texts" class="${title === "Texts" ? "on" : ""}">Texts</a><a href="${esc(CRM)}" target="_blank" rel="noopener">Open the app</a></nav><main>${body}</main></body></html>`;
 }
 
 http.createServer(async (req, res) => {
@@ -569,6 +583,11 @@ http.createServer(async (req, res) => {
       const day = /^\d{4}-\d{2}-\d{2}$/.test(f.from ?? "") ? f.from : todayYmd();
       res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" }).end(await calendarPage(day, `Not moved: ${e.message}${e instanceof Clash ? ' Pick another time, or tick "Move even if it overlaps".' : ""}`));
     }
+    return;
+  }
+  if (url.pathname === "/assets/chair.jpg") {
+    try { res.writeHead(200, { "Content-Type": "image/jpeg", "Cache-Control": "max-age=86400" }).end(readFileSync(new URL("./assets/chair.jpg", import.meta.url))); }
+    catch { res.writeHead(404).end(); }
     return;
   }
   if (url.pathname === "/texts") {
