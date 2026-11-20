@@ -16,7 +16,7 @@ cat > "$P" <<PLIST
 <plist version="1.0"><dict>
   <key>Label</key><string>com.microspace.dashboard</string>
   <key>ProgramArguments</key><array><string>$(command -v node || echo /usr/local/bin/node)</string><string>$D/server.mjs</string></array>
-  <key>EnvironmentVariables</key><dict><key>HLCRM_OPS_KEY_FILE</key><string>$D/ops-key</string></dict>
+  <key>EnvironmentVariables</key><dict><key>HLCRM_OPS_KEY_FILE</key><string>$D/ops-key</string><key>SHOP_TIMEZONE</key><string>${SHOP_TIMEZONE:-America/Chicago}</string></dict>
   <key>WorkingDirectory</key><string>$D</string>
   <key>RunAtLoad</key><true/>
   <key>KeepAlive</key><true/>

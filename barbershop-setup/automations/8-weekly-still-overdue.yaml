@@ -1,5 +1,5 @@
 name: Every morning - remind again about clients still not booked a week later
-trigger: { type: schedule, daily: { at: "07:15" }, timezone: America/Chicago }
+trigger: { type: schedule, daily: { at: "07:15" }, timezone: SHOP_TIMEZONE }
 actions:
   - type: for_each
     query:

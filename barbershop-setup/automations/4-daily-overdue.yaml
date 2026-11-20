@@ -1,5 +1,5 @@
 name: Every morning - put overdue clients on the call-back list
-trigger: { type: schedule, daily: { at: "07:00" }, timezone: America/Chicago }
+trigger: { type: schedule, daily: { at: "07:00" }, timezone: SHOP_TIMEZONE }
 actions:
   - type: for_each
     query:

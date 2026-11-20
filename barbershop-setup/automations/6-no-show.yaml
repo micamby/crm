@@ -7,6 +7,6 @@ actions:
     object: task
     values:
       title: "Call {{steps.c.first.first_name}} {{steps.c.first.last_name}} - missed their appointment"
-      assignee: "{{steps.c.first.owner | default:\"usr_01M7R272BMED896NB6K3KF7V0K\"}}"
+      assignee: "{{steps.c.first.owner | default:\"OWNER_USER_ID\"}}"
       due_at: "{{today+1d}}"
       related_to: ["{{record.client}}", "{{record.id}}"]
