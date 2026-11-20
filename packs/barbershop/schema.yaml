@@ -100,7 +100,7 @@ objects:
         values: [{ key: in_shop, label: In the shop }, { key: square, label: Squire online }]
         default: in_shop
       - { name: checked_in_at, label: Checked in, type: datetime, description: "When the client arrived at the shop" }
-      - { name: squire_event_id, label: Squire event ID, type: text, unique: true, hidden: false, description: "Links this appointment to its Squire calendar event" }
+      - { name: squire_event_id, label: "Squire event ID (filled in automatically, leave blank)", type: text, unique: true, hidden: false, description: "Links this appointment to its Squire calendar event" }
       - { name: followup_sent_at, label: No-show text sent, type: datetime }
       - { name: visit_notes, label: What we chatted about, type: long_text }
       - { name: rebooked, type: boolean, default: false, description: "Next cut booked before leaving or within 3 days after this visit" }
