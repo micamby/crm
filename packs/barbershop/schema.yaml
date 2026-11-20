@@ -20,6 +20,7 @@ objects:
           - { key: chair_4, label: Chair 4 }
           - { key: chair_5, label: Chair 5 }
       - { name: active, type: boolean, default: true }
+      - { name: squire_calendar_link, label: Squire calendar link, type: text, sensitivity: confidential, description: "The barber's private iCal link from Squire (treat like a password). MICROSPACE reads appointments from it." }
   - name: service
     label: Service
     plural_label: Services
@@ -99,6 +100,7 @@ objects:
         values: [{ key: in_shop, label: In the shop }, { key: square, label: Squire online }]
         default: in_shop
       - { name: checked_in_at, label: Checked in, type: datetime, description: "When the client arrived at the shop" }
+      - { name: squire_event_id, label: Squire event ID, type: text, unique: true, hidden: true, description: "Links this appointment to its Squire calendar event" }
       - { name: followup_sent_at, label: No-show text sent, type: datetime }
       - { name: visit_notes, label: What we chatted about, type: long_text }
       - { name: rebooked, type: boolean, default: false, description: "Next cut booked before leaving or within 3 days after this visit" }

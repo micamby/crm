@@ -1,6 +1,6 @@
 # Barbershop schema pack (MIT, see ../LICENSE). Format: docs/packs.md
 name: barbershop
-version: 0.8.1
+version: 0.9.0
 description: Clients, appointments, rebooking and return reminders for a barbershop, with a Barber role.
 min_server_version: 0.1.0
 modules: [core]
