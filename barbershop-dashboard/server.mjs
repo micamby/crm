@@ -164,7 +164,7 @@ body{margin:0;font:16px/1.45 "Helvetica Neue",Helvetica,Arial,system-ui,sans-ser
 h1{font-weight:600;letter-spacing:.01em}h2{font-weight:600;letter-spacing:.1em;text-transform:uppercase;font-size:13px;color:var(--muted)}
 a{color:#0b0b0b}.card,.tbl,.trow,.cal{box-shadow:0 1px 2px rgba(0,0,0,.04)}
 .btn{background:#fff;color:#0b0b0b;border:1px solid #d6d6d6}.btn.primary,button.btn.primary{background:#0b0b0b;color:#fff;border-color:#0b0b0b}
-.hero{position:relative;border-radius:16px;overflow:hidden;margin:4px 0 20px;min-height:180px;background:#000 url(/assets/chair.jpg) center 62%/cover no-repeat;display:flex;align-items:flex-end}
+.hero{position:relative;border-radius:16px;overflow:hidden;margin:4px 0 20px;min-height:200px;background:#000 url(/assets/chair.png) center 58%/cover no-repeat;image-rendering:auto;display:flex;align-items:flex-end}
 .hero::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,#000 0%,rgba(0,0,0,.55) 45%,rgba(0,0,0,.1) 100%)}
 .hero div{position:relative;z-index:1;padding:20px 22px;color:#fff}.hero h1{font-size:28px;margin:0}.hero p{margin:4px 0 0;color:#cfcfcf}
 .appt{color:#fff!important;border-left-color:#fff!important}.appt span{color:#bdbdbd!important}
@@ -593,8 +593,8 @@ http.createServer(async (req, res) => {
     }
     return;
   }
-  if (url.pathname === "/assets/chair.jpg") {
-    try { res.writeHead(200, { "Content-Type": "image/jpeg", "Cache-Control": "max-age=86400" }).end(readFileSync(new URL("./assets/chair.jpg", import.meta.url))); }
+  if (url.pathname === "/assets/chair.png") {
+    try { res.writeHead(200, { "Content-Type": "image/png", "Cache-Control": "max-age=86400" }).end(readFileSync(new URL("./assets/chair.png", import.meta.url))); }
     catch { res.writeHead(404).end(); }
     return;
   }
