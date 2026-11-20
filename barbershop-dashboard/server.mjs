@@ -114,7 +114,7 @@ function page(n) {
   const card = (label, value, note = "") => `<div class="card"><div class="v">${esc(value)}</div><div class="l">${esc(label)}</div>${note ? `<div class="n">${esc(note)}</div>` : ""}</div>`;
   const shopRate = pct(n.shop.rebooked30, n.shop.done30);
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MICRO numbers</title><style>
+<title>MICROSPACE numbers</title><style>
 
 main{max-width:960px;margin:0 auto;padding:24px 16px 48px}h1{margin:0;font-size:26px}h2{font-size:18px;margin:32px 0 10px}
 .sub{color:var(--muted);margin:4px 0 20px}.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
@@ -152,7 +152,7 @@ ${n.overdue.slice(0, 50).map((c) => `<tr><td><a href="${esc(CRM)}/o/contact/${es
 
 // ---- MICRO brand: black and silver, from the shop's logo ----
 const LOGO_SVG = `<svg class="mark" viewBox="0 0 100 130" aria-hidden="true"><defs><linearGradient id="mg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b9b9b9"/><stop offset=".55" stop-color="#3a3a3a"/><stop offset="1" stop-color="#0a0a0a"/></linearGradient></defs><polygon points="0,0 49.5,48 49.5,130 0,130" fill="url(#mg)"/><polygon points="100,0 50.5,48 50.5,130 100,130" fill="url(#mg)"/></svg>`;
-const BRAND = `<a class="brand" href="/">${LOGO_SVG}<span class="word">MICRO</span></a>`;
+const BRAND = `<a class="brand" href="/">${LOGO_SVG}<span class="word">MICROSPACE</span></a>`;
 const THEME = `
 :root{color-scheme:light;--bg:#fff;--fg:#0b0b0b;--muted:#6e6e6e;--card:#fff;--line:#e6e6e6;--accent:#0b0b0b;--done:#f3f3f3;--miss:#fbeeee;--book:#0b0b0b}
 body{margin:0;font:16px/1.45 "Helvetica Neue",Helvetica,Arial,system-ui,sans-serif;background:var(--bg);color:var(--fg);letter-spacing:.01em}
@@ -160,7 +160,7 @@ body{margin:0;font:16px/1.45 "Helvetica Neue",Helvetica,Arial,system-ui,sans-ser
 .top a{color:#9a9a9a;text-decoration:none;padding:6px 12px;border-radius:999px;font-size:14px;letter-spacing:.08em;text-transform:uppercase}
 .top a:hover{color:#fff}.top a.on{color:#000;background:#fff}
 .brand{display:flex;align-items:center;gap:10px;margin-right:auto;padding:0!important;text-transform:none!important}
-.mark{width:22px;height:28px}.word{font-weight:700;font-size:18px;letter-spacing:.32em;background:linear-gradient(90deg,#2a2a2a 0%,#8a8a8a 40%,#ffffff 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
+.mark{width:22px;height:28px}.word{font-weight:700;font-size:17px;letter-spacing:.26em;background:linear-gradient(90deg,#2a2a2a 0%,#8a8a8a 40%,#ffffff 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
 h1{font-weight:600;letter-spacing:.01em}h2{font-weight:600;letter-spacing:.1em;text-transform:uppercase;font-size:13px;color:var(--muted)}
 a{color:#0b0b0b}.card,.tbl,.trow,.cal{box-shadow:0 1px 2px rgba(0,0,0,.04)}
 .btn{background:#fff;color:#0b0b0b;border:1px solid #d6d6d6}.btn.primary,button.btn.primary{background:#0b0b0b;color:#fff;border-color:#0b0b0b}
@@ -522,7 +522,7 @@ async function markTexted(f) {
 
 function shell(title, body) {
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MICRO ${esc(title)}</title><link rel="icon" href="data:image/svg+xml,${encodeURIComponent(LOGO_SVG.replace('class="mark" ', 'xmlns="http://www.w3.org/2000/svg" '))}"><style>
+<title>MICROSPACE ${esc(title)}</title><link rel="icon" href="data:image/svg+xml,${encodeURIComponent(LOGO_SVG.replace('class="mark" ', 'xmlns="http://www.w3.org/2000/svg" '))}"><style>
 
 main{max-width:1200px;margin:0 auto;padding:16px 16px 48px}h1{margin:0;font-size:24px}
 .sub{color:var(--muted)}
