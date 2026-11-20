@@ -160,7 +160,7 @@ body{margin:0;font:16px/1.45 "Helvetica Neue",Helvetica,Arial,system-ui,sans-ser
 .top a{color:#9a9a9a;text-decoration:none;padding:6px 12px;border-radius:999px;font-size:14px;letter-spacing:.08em;text-transform:uppercase}
 .top a:hover{color:#fff}.top a.on{color:#000;background:#fff}
 .brand{display:flex;align-items:center;gap:10px;margin-right:auto;padding:0!important;text-transform:none!important}
-.mark{width:22px;height:28px}.word{font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-weight:300;font-size:17px;letter-spacing:.3em;background:linear-gradient(90deg,#2a2a2a 0%,#8a8a8a 40%,#ffffff 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
+.mark{width:22px;height:28px}.word{font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-weight:300;font-size:17px;letter-spacing:.3em;background:linear-gradient(90deg,#7a7a7a 0%,#bcbcbc 45%,#ffffff 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
 h1{font-weight:600;letter-spacing:.01em}h2{font-weight:600;letter-spacing:.1em;text-transform:uppercase;font-size:13px;color:var(--muted)}
 a{color:#0b0b0b}.card,.tbl,.trow,.cal{box-shadow:0 1px 2px rgba(0,0,0,.04)}
 .btn{background:#fff;color:#0b0b0b;border:1px solid #d6d6d6}.btn.primary,button.btn.primary{background:#0b0b0b;color:#fff;border-color:#0b0b0b}
