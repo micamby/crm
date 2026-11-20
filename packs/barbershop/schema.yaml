@@ -96,7 +96,7 @@ objects:
       - name: booked_via
         label: Booked via
         type: single_select
-        values: [{ key: in_shop, label: In the shop }, { key: square, label: Square online }]
+        values: [{ key: in_shop, label: In the shop }, { key: square, label: Squire online }]
         default: in_shop
       - { name: checked_in_at, label: Checked in, type: datetime, description: "When the client arrived at the shop" }
       - { name: followup_sent_at, label: No-show text sent, type: datetime }

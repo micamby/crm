@@ -233,7 +233,7 @@ async function calendarPage(ymd, notice = "") {
       ? new Date(a.checked_in_at).toLocaleTimeString("en-US", { timeZone: TZ, hour: "numeric", minute: "2-digit" }) : "";
     return `<a class="appt s-${esc(a.status)}${here ? " here" : ""}" title="${esc(time)} - ${esc(end)}. Drag to move, or click for options." style="top:${top}px;height:${Math.max(18, len * PX_PER_MIN - 3)}px" href="${esc(CRM)}/o/appointment/${esc(a.id)}" target="_blank" rel="noopener"
       draggable="${a.status === "booked" ? "true" : "false"}" data-id="${esc(a.id)}" data-barber="${esc(a.barber ?? "")}" data-time="${esc(new Date(a.starts_at).toLocaleTimeString("en-GB", { timeZone: TZ, hour: "2-digit", minute: "2-digit" }))}" data-who="${esc(who)}" data-status="${esc(a.status)}" data-here="${a.checked_in_at ? "1" : ""}" data-notes="${esc(a.visit_notes ?? "")}">
-      <b>${here ? "✓ " : ""}${esc(time)} ${esc(who)}</b><span>${here ? `Here since ${esc(here)} · ` : ""}${[svcName.get(a.service_type) ?? SERVICE[a.service], `${len} min`].filter(Boolean).map(esc).join(" · ")}${a.status !== "booked" ? " · " + esc({ completed: "Done", no_show: "No-show", cancelled: "Cancelled" }[a.status] ?? a.status) : ""}${a.booked_via === "square" ? " · Square" : ""}</span></a>`;
+      <b>${here ? "✓ " : ""}${esc(time)} ${esc(who)}</b><span>${here ? `Here since ${esc(here)} · ` : ""}${[svcName.get(a.service_type) ?? SERVICE[a.service], `${len} min`].filter(Boolean).map(esc).join(" · ")}${a.status !== "booked" ? " · " + esc({ completed: "Done", no_show: "No-show", cancelled: "Cancelled" }[a.status] ?? a.status) : ""}${a.booked_via === "square" ? " · Squire" : ""}</span></a>`;
   };
   const unassigned = appts.filter((a) => !cols.some((b) => b.id === a.barber));
   return shell("Calendar", `
@@ -276,7 +276,7 @@ ${unassigned.length ? `<p class="sub">${unassigned.length} appointment(s) have n
   ${active.length ? "" : `<p class="notice">No services yet: add them under <a href="${esc(CRM)}/o/service" target="_blank" rel="noopener">Services</a> in the app.</p>`}
   <label class="inline"><input type="checkbox" name="anyway" value="1"> Book even if it overlaps another appointment</label>
 
-  <label>Booked <select name="booked_via"><option value="in_shop">In the shop</option><option value="square">Square online</option></select></label>
+  <label>Booked <select name="booked_via"><option value="in_shop">In the shop</option><option value="square">Squire online</option></select></label>
   <div class="actions"><button type="button" class="btn" onclick="document.getElementById('book').close()">Cancel</button><button class="btn primary">Book it</button></div>
 </form></dialog>
 <dialog id="move"><form method="post" action="/move">
