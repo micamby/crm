@@ -164,9 +164,9 @@ body{margin:0;font:16px/1.45 "Helvetica Neue",Helvetica,Arial,system-ui,sans-ser
 h1{font-weight:600;letter-spacing:.01em}h2{font-weight:600;letter-spacing:.1em;text-transform:uppercase;font-size:13px;color:var(--muted)}
 a{color:#0b0b0b}.card,.tbl,.trow,.cal{box-shadow:0 1px 2px rgba(0,0,0,.04)}
 .btn{background:#fff;color:#0b0b0b;border:1px solid #d6d6d6}.btn.primary,button.btn.primary{background:#0b0b0b;color:#fff;border-color:#0b0b0b}
-.hero{position:relative;border-radius:16px;overflow:hidden;margin:4px 0 20px;min-height:200px;background:#000 url(/assets/chair.png) center 58%/cover no-repeat;image-rendering:auto;display:flex;align-items:flex-end}
-.hero::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,#000 0%,rgba(0,0,0,.55) 45%,rgba(0,0,0,.1) 100%)}
-.hero div{position:relative;z-index:1;padding:20px 22px;color:#fff}.hero h1{font-size:28px;margin:0}.hero p{margin:4px 0 0;color:#cfcfcf}
+.hero{border-radius:16px;overflow:hidden;margin:4px 0 20px;height:150px;background:#000 url(/assets/chair.png) right 60%/auto 210% no-repeat;display:flex;align-items:center}
+.hero div{padding:0 26px;color:#fff}.hero h1{font-size:28px;margin:0}.hero p{margin:4px 0 0;color:#cfcfcf}
+@media (max-width:700px){.hero{background-size:auto 160%;background-position:right 55%}.hero div{background:linear-gradient(90deg,#000 60%,transparent);padding:20px 40px 20px 22px}}
 .appt{color:#fff!important;border-left-color:#fff!important}.appt span{color:#bdbdbd!important}
 .appt.s-completed{background:var(--done)!important;color:#0b0b0b!important;border-left-color:#bdbdbd!important}.appt.s-completed span{color:#6e6e6e!important}
 .appt.s-no_show,.appt.s-cancelled{background:var(--miss)!important;color:#7a1f1f!important;border-left-color:#c0533f!important}.appt.s-no_show span,.appt.s-cancelled span{color:#9a5a5a!important}
